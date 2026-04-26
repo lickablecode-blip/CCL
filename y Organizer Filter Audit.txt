@@ -1,0 +1,103 @@
+SELECT
+                mpage = mpage.category_name
+                ,component = comp.report_name
+                ,filter = f.filter_display
+                ,filter_meaning = f.filter_mean
+                ,filter_category = f.filter_category_mean
+                ,saved_value = 
+                                IF(v.br_datamart_value_id = 0) "<No saved value>"
+                                ELSEIF(v.parent_entity_id = 0 AND v.freetext_desc = "0") "No"
+                                ELSEIF(v.parent_entity_id = 0 AND v.freetext_desc = "1") "Yes"
+                                
+                                ELSEIF(v.parent_entity_name = "CODE_VALUE") UAR_GET_CODE_DISPLAY(v.parent_entity_id)
+                                ELSEIF(v.parent_entity_name = "DCP_FORMS_REF") dcp.description
+                                ELSEIF(v.parent_entity_name = "NOMENCLATURE" AND TEXTLEN(TRIM(n.source_string)) = 0)
+                                                n.source_identifier
+                                ELSEIF(v.parent_entity_name = "NOMENCLATURE" AND NULLIND(n.source_string) = 0) 
+                                                BUILD(n.source_identifier, "-", n.source_string)
+                                ELSEIF(v.parent_entity_name = "PATHWAY_CATALOG") pc.description
+                                
+                                ;Still need to include other types, e.g. MLTM_DRUG_CATEGORIES, ORDER_CATALOG_SYNONYM, etc.
+                                
+                                ELSE v.freetext_desc
+                                ENDIF
+                
+                ,value_source = v.parent_entity_name
+                ,value_source_id = v.parent_entity_id
+
+;               ,v.value_type_flag
+;               ,value_type = EVALUATE(v.value_type_flag,
+;                               0, "numeric",
+;                               1, "freetext",
+;                               2, "alpha",
+;                               "Unknown flag value")
+;               ,v.qualifier_flag
+;               ,qualifier = EVALUATE(v.qualifier_flag,
+;                               0, "equal",
+;                               1, "not equal",
+;                               2, "greater than",
+;                               "Unknown flag value")
+
+                ,flexed_position = 
+                                IF(flex.parent_entity_type_flag = 1 AND flex.grouper_ind = 0) 
+                                                UAR_GET_CODE_DISPLAY(flex.parent_entity_id)
+                                ELSE "<Default Setting>"
+                                ENDIF
+                ,last_updated = v.updt_dt_tm "MM/DD/YYYY HH:MM;;q"
+                ,updated_by = 
+                                IF(pr.position_cd != 0)
+                                                BUILD(pr.name_full_formatted, " (", TRIM(UAR_GET_CODE_DISPLAY(pr.position_cd)), ")")
+                                ELSE pr.name_full_formatted
+                                ENDIF
+                
+                ;sequences
+;               ,comp.mpage_pos_seq
+;               ,f.filter_seq
+;               ,v.value_seq
+;               ,v.group_seq
+                
+                ;identifiers
+;               ,mpage_id = mpage.br_datamart_category_id
+;               ,component_id = comp.br_datamart_report_id
+;               ,filter_reltn_id = f_r.br_datamart_report_filter_r_id
+;               ,filter_id = f.br_datamart_filter_id
+;               ,value_id = v.br_datamart_value_id
+;               ,flex_id = v.br_datamart_flex_id
+
+                
+FROM BR_DATAMART_CATEGORY mpage
+                ,BR_DATAMART_REPORT comp
+                ,BR_DATAMART_REPORT_FILTER_R f_r
+                ,BR_DATAMART_FILTER f
+                ,(LEFT JOIN BR_DATAMART_VALUE v ON v.br_datamart_filter_id = f.br_datamart_filter_id
+                                AND v.end_effective_dt_tm > SYSDATE
+                                ;AND v.br_datamart_flex_id = 0 ;uncomment to only see default settings,
+                                                                                                                                                   ;but need to remove BR_DATAMART_FLEX join as well
+                                )
+                ,(LEFT JOIN BR_DATAMART_FLEX flex ON flex.br_datamart_flex_id = v.br_datamart_flex_id)
+                ,(LEFT JOIN PRSNL pr ON pr.person_id = v.updt_id)
+                
+                ,(LEFT JOIN NOMENCLATURE n ON n.nomenclature_id = v.parent_entity_id
+                                AND v.parent_entity_name = "NOMENCLATURE")
+                ,(LEFT JOIN DCP_FORMS_REF dcp ON dcp.dcp_forms_ref_id = v.parent_entity_id
+                                AND v.parent_entity_name = "DCP_FORMS_REF")
+                ,(LEFT JOIN PATHWAY_CATALOG pc ON pc.pathway_catalog_id = v.parent_entity_id
+                                AND v.parent_entity_name = "PATHWAY_CATALOG")
+
+PLAN mpage WHERE 1=1
+                AND CNVTUPPER(mpage.category_name) = "AMBULATORY ORGANIZER"
+                AND mpage.category_type_flag = 1 ;mpage
+JOIN comp WHERE comp.br_datamart_category_id = mpage.br_datamart_category_id
+JOIN f_r WHERE f_r.br_datamart_report_id = comp.br_datamart_report_id
+JOIN f WHERE f.br_datamart_filter_id = f_r.br_datamart_filter_id
+
+JOIN flex
+JOIN v
+JOIN pr
+JOIN n
+JOIN dcp
+JOIN pc
+                
+ORDER BY comp.mpage_pos_seq, f.filter_seq, flexed_position, v.value_seq
+                
+WITH TIME=30, UAR_CODE(D)

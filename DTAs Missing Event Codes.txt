@@ -1,0 +1,62 @@
+Select distinct
+form=substring(1,50,r.definition)
+, task=o.task_description
+, task_type=uar_get_code_display(o.task_type_cd)
+, section=s.definition
+, section_disp=s.description
+, dta_mnem=dta.mnemonic
+, dta_desc=dta.description
+, dta.task_assay_cd
+, p.parent_entity_id
+, dta.event_cd
+, existing_event_cd = if(c.display = dta.mnemonic)c.display
+elseif (c.display != dta.mnemonic)"none"
+endif
+from
+dcp_forms_ref r
+, dcp_forms_def d
+, dcp_section_ref s
+, dcp_input_ref i
+, name_value_prefs p
+, discrete_task_assay dta
+, code_value c
+, order_task o
+plan r where r.dcp_forms_ref_id != 0
+and cnvtupper(r.definition) NOT IN ("ZZ*")
+and r.active_ind=1
+and (exists(select o.dcp_forms_ref_id from order_task o
+where o.dcp_forms_ref_id = r.dcp_forms_ref_id
+and o.active_ind = 1)
+or exists(select a.refinement_entity_id
+from track_action_refinement a
+where a.refinement_entity_id = r.dcp_forms_ref_id)
+or exists(select c.form_id from order_catalog c
+where c.form_id = r.dcp_forms_ref_id))
+;and r.definition = "form description"
+;**Remove semi-colon to search on specific form
+join d where r.dcp_form_instance_id = d.dcp_form_instance_id
+and d.section_seq != 0
+and d.active_ind+0= 1
+join s where s.dcp_section_ref_id = d.dcp_section_ref_id
+and cnvtupper(s.definition) NOT IN ("ZZ*")
+and s.active_ind= 1
+join i where i.dcp_section_instance_id = s.dcp_section_instance_id
+and i.active_ind= 1
+join p where i.dcp_input_ref_id = p.parent_entity_id
+and p.pvc_name = "*discrete_task_assay*"
+and p.merge_id != 0.00
+and not exists (select p1.parent_entity_id from name_value_prefs p1
+where p1.parent_entity_id = p.parent_entity_id and p1.pvc_name = "read_only")
+join dta where p.merge_id = dta.task_assay_cd
+and dta.active_ind=1
+and dta.event_cd+0 = 0.00
+and dta.activity_type_cd not in(select cv2.code_value from
+code_value cv2 where cv2.cdf_meaning in ("GLB", "RADIOLOGY", "AP", "BB", "BB PRODUCT",
+"BBDONOR", "BBDONORPROD", "HLA", "MICROBIOLOGY")and cv2.end_effective_dt_tm > sysdate)
+and (not exists(select cr.parent_cd from code_value_event_r cr
+where cr.parent_cd = dta.task_assay_cd))
+join c where c.display = outerjoin(dta.mnemonic)
+and c.code_set = outerjoin(72)
+join o where o.dcp_forms_ref_id = r.dcp_forms_ref_id
+order by r.definition, d.section_seq, i.input_ref_seq
+with nocounter go

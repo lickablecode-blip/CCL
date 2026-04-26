@@ -1,0 +1,34 @@
+; NOTE: This query DOES NOT return most positions with Ambulatory Root (2900601) as this is the default system setting
+
+
+SELECT
+ ap.position_cd
+ , position = uar_get_code_display(ap.position_cd)
+ , nvp.pvc_name
+ , NVP.pvc_value
+ , A.long_description
+ , A.short_description
+
+FROM
+ name_value_prefs   nvp
+ , app_prefs   ap
+ , alt_sel_Cat   a
+
+plan ap where ap.application_number = 600005 ; <- PowerChart 4250111 <- FirstNet
+
+and ap.active_ind = 1 
+
+ 
+
+join nvp where nvp.parent_entity_id = ap.app_prefs_id 
+
+and nvp.pvc_name = "ADHOC_ROOT" 
+
+and nvp.active_ind = 1 
+
+and cnvtreal(trim(nvp.pvc_value)) > 0  join a where cnvtreal(trim(nvp.pvc_value)) = a.alt_sel_category_id
+
+ORDER BY
+ position
+
+WITH nocounter

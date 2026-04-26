@@ -1,0 +1,6 @@
+select component.report_name , component.report_mean, mpage.category_name,
+mpage.category_mean
+from br_datamart_report component, br_datamart_category mpage
+plan component where component.report_name = "Advanced Growth Chart"
+join mpage where component.br_datamart_category_id = mpage.br_datamart_category_id order by
+component.report_mean, mpage.category_name

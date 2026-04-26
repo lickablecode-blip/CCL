@@ -1,7 +1,0 @@
-select viewpoint.viewpoint_name, mpage.category_name, mpage.category_mean,
-mpage.br_datamart_category_id
-from mp_viewpoint_reltn view_reltn, mp_viewpoint viewpoint, br_datamart_category mpage
-plan viewpoint where viewpoint.mp_viewpoint_id > 0
-join view_reltn where view_reltn.mp_viewpoint_id = viewpoint.mp_viewpoint_id
-join mpage where mpage.br_datamart_category_id = view_reltn.br_datamart_category_id order by
-viewpoint.viewpoint_name, mpage.category_name
