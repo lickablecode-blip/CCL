@@ -1,0 +1,50 @@
+select
+quick_visit=cp.pathway_name
+, cc.component_display
+, detail_1 = 
+  if(ccd.component_entity_name ="NOMENCLATURE")concat(trim(n.source_string),' (',trim(n.source_identifier),')')
+  elseif(ccd.component_entity_name = "NOTE_PHRASE")np.abbreviation
+  elseif(ccd.component_entity_name = "ORDER_CATALOG_SYNONYM")ocs2.mnemonic
+  elseif(ccd.component_entity_name = "ORDER_SENTENCE")ocs.mnemonic 
+  elseif(ccd.component_entity_name = "LONG_TEXT_REFERENCE")ltr.long_text 
+  elseif(ccd.component_entity_name = "CODE_VALUE")cv.display endif
+, detail_2 = 
+  if(os.order_sentence_id > 0)os.order_sentence_display_line
+  elseif(ccd.component_entity_name ="NOMENCLATURE")uar_get_code_display(n.source_vocabulary_cd)
+  elseif(ccd.component_entity_name = "NOTE_PHRASE")np.abb_description
+ endif
+;, test=substring(findstring('PAT_ED_RELTN_DESC_KEY',trim(ltr.long_text),0,0)10,ltr.long_text)
+;, value=substring(0,findstring('#',trim(v.value,3),0,0)-1,trim(v.value,3))
+from
+cp_pathway cp
+,cp_node cn
+,cp_component cc
+,cp_component_detail ccd
+,nomenclature n
+,note_phrase np
+,order_sentence os
+,order_catalog_synonym ocs
+,order_catalog_synonym ocs2
+,long_text_reference ltr
+,code_value cv
+plan cp where cp.pathway_type_cd in
+(select cv1.code_value from code_value cv1 
+where cv1.code_set = 4003197 and cv1.cdf_meaning = "QUICKVISIT")
+ ;and cp.active_ind = 1
+ and cp.pathway_name = "AMB Pediatric*"
+ and cp.pathway_name != "AMB Pediatric Well*"
+ and cp.owner_prsnl_id = 0.00
+join cn where cn.cp_pathway_id = cp.cp_pathway_id
+join cc where cc.cp_node_id = cn.cp_node_id
+join ccd where ccd.cp_component_id = cc.cp_component_id
+join n where n.nomenclature_id = outerjoin(ccd.component_entity_id)
+join np where np.note_phrase_id = outerjoin(ccd.component_entity_id)
+join os where os.order_sentence_id = outerjoin(ccd.component_entity_id)
+join ocs where ocs.synonym_id = outerjoin(os.parent_entity_id)
+join ocs2 where ocs2.synonym_id = outerjoin(ccd.component_entity_id)
+join ltr where ltr.long_text_id = outerjoin(ccd.component_entity_id)
+join cv where cv.code_value = outerjoin(ccd.component_entity_id)
+order by
+cp.pathway_name
+, cc.component_seq_txt
+, cnvtint(ccd.component_ident)
