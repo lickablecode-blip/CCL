@@ -1,0 +1,70 @@
+select distinct
+	cv.code_set,
+	cv.code_value,
+	cv.display,
+	cv.description,
+	cv.definition,
+	cv.cdf_meaning,
+	cv.collation_seq,
+	cv.active_ind,
+	cv.cki,
+	cv.concept_cki,
+	Contributor_Source_IN=uar_get_code_display(cva.contributor_source_cd),
+	cva_200=cva.alias,
+	Contributor_source_OUT=uar_get_code_display(cvo.contributor_source_cd),
+	CVO_200 = cvo.alias,
+	cv2.code_set,
+	cv2.code_value,
+	cv2.display,
+	cv2.description,
+	cv2.definition,
+	cv2.cdf_meaning,
+	cv2.collation_seq,
+	cv2.active_ind,
+	cv2.cki,
+	cv2.concept_cki,
+	Contributor_Source_IN=uar_get_code_display(cva2.contributor_source_cd),
+	cva_14003 = cva2.alias,
+	Contributor_Source_OUT=uar_get_code_display(cvo2.contributor_source_cd),
+	cvo_14003= cvo2.alias
+ from 
+	orc_resource_list ol, 
+	order_catalog oc, 
+	profile_task_r p, 
+ 	discrete_task_assay d,
+	code_value cv, 
+	code_value cv2,
+	code_value_outbound cvo, 
+	code_value_outbound cvo2,
+	code_value_alias cva, 
+	code_value_alias cva2,
+	dummyt d1, 
+	dummyt d2, 
+	dummyt d3, 
+	dummyt d4
+
+Plan OL where ol.service_resource_cd in (4275084, 4332928, 4275115, 4274982)
+	and ol.active_ind = 1
+Join OC where ol.catalog_cd = oc.catalog_cd 
+	and oc.active_ind = 1
+join cv where cv.code_value = oc.catalog_cd
+Join P where ol.catalog_cd = p.catalog_cd and p.active_ind = 1
+Join D where d.task_assay_cd = p.task_assay_cd 
+	and d.active_ind = 1
+join cv2 where cv2.code_value = p.task_assay_cd
+join d1
+join cva where cva.code_value = oc.catalog_cd 
+	and cva.CONTRIBUTOR_SOURCE_CD = 4382730
+join d2
+join cvo where cvo.code_value = oc.catalog_cd 
+	and cvo.CONTRIBUTOR_SOURCE_CD = 4382730
+join d3
+join cva2 where cva2.code_value = p.task_assay_cd 
+	and cva2.CONTRIBUTOR_SOURCE_CD = 4382730
+join d4
+join cvo2 where cvo2.code_value = p.task_assay_cd 
+	and  cvo2.CONTRIBUTOR_SOURCE_CD = 4382730
+
+order by oc.primary_mnemonic, p.sequence
+
+with outerjoin=d1, outerjoin=d2, outerjoin=d3, outerjoin=d4

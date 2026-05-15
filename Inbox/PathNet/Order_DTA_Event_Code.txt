@@ -1,0 +1,34 @@
+SELECT
+	C_EVENT_DISP = UAR_GET_CODE_DISPLAY(C.EVENT_CD)
+	, C.EVENT_CD
+	, Task_assay = UAR_GET_CODE_DISPLAY(C.PARENT_CD)
+	, task_assay_code = C.PARENT_CD
+	, O_CATALOG_DISP = UAR_GET_CODE_DISPLAY(O.CATALOG_CD)
+	, O_CATALOG_TYPE_DISP = UAR_GET_CODE_DISPLAY(O.CATALOG_TYPE_CD)
+	, O.PRIMARY_MNEMONIC
+	, D_TASK_ASSAY_DISP = UAR_GET_CODE_DISPLAY(D.TASK_ASSAY_CD)
+	, D.MNEMONIC
+	, D_DEFAULT_RESULT_TYPE_DISP = UAR_GET_CODE_DISPLAY(D.DEFAULT_RESULT_TYPE_CD)
+
+FROM
+	ORDER_CATALOG   O
+	, PROFILE_TASK_R   P
+	, DISCRETE_TASK_ASSAY   D
+	, CODE_VALUE_EVENT_R   C
+
+plan o
+where o.activity_type_cd = 692
+  and o.active_ind = 1
+
+join p
+where p.catalog_cd = o.catalog_cd
+  and p.active_ind = 1
+
+join d
+where d.task_assay_cd = p.task_assay_cd
+  and d.active_ind = 1
+
+Join C
+where C.PARENT_CD =d.task_assay_cd
+
+WITH NOCOUNTER, SEPARATOR=" ", FORMAT

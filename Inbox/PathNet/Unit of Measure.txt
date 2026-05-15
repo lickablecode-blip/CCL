@@ -1,0 +1,5 @@
+select 
+display,
+description
+ from code_value where code_set = 54 
+order by display go

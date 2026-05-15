@@ -1,0 +1,33 @@
+select DISTINCT action_type_cd=cv1.display,
+OE_FORMAT_NAME=substring(1,20,oef.oe_format_name), 
+FIELD_NAME=substring(1,30,oefields.description), 
+a.flex_type_flag, 
+cv2.display, 
+a.accept_flag, 
+default_value=substring(1,30,a.default_value), 
+parent_entity_name= substring(1,30,a.default_parent_entity_name), 
+a.default_parent_entity_id
+from order_entry_format oef, 
+accept_format_flexing a, 
+order_entry_fields oefields, 
+code_Value cv1, 
+code_Value cv2
+plan oef where oef.oe_format_id = XXXXXX ;<--ENTER FORMAT ID***************************
+join a where oef.oe_format_id = a.oe_format_id
+join cv1 where a.action_type_cd = cv1.code_value
+join cv2 where a.flex_cd = cv2.code_value
+join oefields where a.oe_field_id = oefields.oe_field_id
+order by oef.oe_format_name, cv1.display, oefields.description, a.flex_type_flag 
+Head report
+col 25 "ORDER ENTRY FORMAT FLEXING REPORT FOR FORMAT: " OE_FORMAT_NAME, row+2
+col 10 "NOTE 1- FLEX_TYPE_FLAG (0:ordering location 1:patient location 2:application 3:position)",row+1
+col 10 "NOTE 2- ACCEPT_FLAG (0:required, 1:optional, 2:no display 3:display only)", row+1
+col 10 "NOTE 3- DEFAULT ENTITY ID = DEFAULT VALUE if it is a code_Value", row+2
+Head ACTION_TYPE_CD
+row+2,col 5 "FIELD NAME", col 22 "FLEX TYPE FLAG", col 40 "FLEX VALUE", col 60 "ACCEPT FLAG",
+col 75 "DEFAULT VALUE", col 95 "DEFAULT ENTITY ID", row+1, LINE = FILLSTRING(100,"-"), 
+col 0 LINE, row+1, col 5 "ACTION TYPE=", col+2 action_type_cd, row+2
+detail 
+col 5 FIELD_NAME, col 25 a.flex_type_flag, col 40 cv2.display, col 60 a.accept_flag
+col 75 default_value, col 95 a.default_parent_entity_id,row+1
+Go 

@@ -1,0 +1,23 @@
+select
+	cm.short_description,
+	cm.description,
+	cm_manufacturer_disp = uar_get_code_display( cm.manufacturer_cd ),
+	cm_control_type_disp = uar_get_code_display( cm.control_type_cd ),
+	cl.lot_number,
+	rec_dt = concat(format(cnvtdatetime(cl.receive_dt_tm),"mm/dd/yyyy;;D")),
+	rec_tm = concat(format(cnvtdatetime(cl.receive_dt_tm),"hh:mm;;m")),
+	exp_dt = concat(format(cnvtdatetime(cl.expiration_dt_tm),"mm/dd/yyyy;;D")),
+	exp_tm = concat(format(cnvtdatetime(cl.expiration_dt_tm),"hh:mm;;m"))
+
+from
+	control_material  cm,
+	control_lot  cl
+
+plan cm
+where cm.control_id > 0
+
+join cl
+where cl.control_id = cm.control_id
+
+order by	cm.short_description,
+			cm_control_type_disp
