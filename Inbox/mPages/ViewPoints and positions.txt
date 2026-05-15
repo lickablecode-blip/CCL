@@ -1,0 +1,7 @@
+select viewpoint.viewpoint_name, position.description, nvp.pvc_value
+from name_value_prefs nvp, mp_viewpoint viewpoint, code_value position, detail_prefs dp plan
+viewpoint where viewpoint.mp_viewpoint_id > 0
+join nvp where nvp.pvc_name = "REPORT_NAME" and findstring(viewpoint.viewpoint_name_key,
+nvp.pvc_value) > 0 join dp where dp.detail_prefs_id = nvp.parent_entity_id
+join position where dp.position_cd = position.code_value order by viewpoint.viewpoint_name,
+position.description
