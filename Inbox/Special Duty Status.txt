@@ -11,6 +11,7 @@
 /* BRANCH 1: HAS CLINICAL EVENT WITHOUT PASSIVE ALERT	*/
 SELECT
 discrepancy_type = "Missing Alert"
+, p.name_full_formatted
 , ce.person_id
 , ce.event_id		/*BEST PK*/
 , ce.event_cd
@@ -22,6 +23,7 @@ discrepancy_type = "Missing Alert"
 , alert_txt = ""
 FROM 
 clinical_event ce
+,person p
 PLAN ce
 	WHERE ce.event_cd IN		/*EVENT_CD F/ SPECIAL DUTY STATUS != TRAINEE*/
 		(SELECT ese.event_cd
@@ -49,12 +51,14 @@ PLAN ce
 		AND pa.alert_source = "SZ_V2_SPECIAL_DUTY_STATUS"
 		AND pa.active_ind = 1
 		AND pa.end_effective_dt_tm > sysdate)
+JOIN p where p.person_id = ce.person_id
 		
 /* BRANCH 2: HAS PASSIVE ALERT WITHOUT CLINICAL EVENT	*/
 /* NOT WORKING WELL, PROBABLY DOES NOT MATTER AS USERS	*/
 /* WILL SEE PASSIVE ALERT AND CAN MANUALLY REMOVE		*/
 ;SELECT
 ;discrepancy_type = "Stale Alert"
+;, p_placeholder = ""
 ;, pa.person_id
 ;, event_id = 0
 ;, event_cd = 0
