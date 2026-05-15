@@ -1,0 +1,57 @@
+select
+
+	ita_task_assay_cd = uar_get_code_display(ita.task_assay_cd),
+	ita_order_cat_cd = uar_get_code_display(ita.order_cat_cd),
+	oc_activity_type_cd = uar_get_code_display(oc.activity_type_cd),
+	ita_service_resource_cd = uar_get_code_display (ita.service_resource_cd),
+	ita_interp_type_cd = uar_get_code_display(ita.interp_type_cd),
+	ita.generate_interp_flag,
+	ic_interp_id = uar_get_code_display(ic.interp_id),
+	ic_included_assay_cd = uar_get_code_display(ic.included_assay_cd),
+	ic.cross_drawn_dt_tm_ind, 
+	ic.time_window_minutes, 
+	ic.time_window_units_cd, 
+	ic.result_req_flag,
+	vf = if (ic.verified_flag = 0) "performed"
+	else "verified" endif,
+	a.interp_range_id, 
+	a_included_assay_cd = uar_get_code_display(a.included_assay_cd),
+	a.species_cd,
+	a.race_cd,
+	a.gender_cd,
+	a.unknown_age_ind,
+	a.age_from_minutes,
+	a_age_from_units_cd = uar_get_code_display (a.age_from_units_cd),
+	a.age_to_minutes,
+	a.age_to_units_cd,
+	irr_result_cd = uar_get_code_display (irr.result_cd),
+	irr.hash_pattern
+
+	
+from
+interp_task_assay ita,
+Order_catalog oc,
+interp_component ic,
+interp_range a,
+interp_result irr
+
+plan ita 
+where ita.active_ind = 1
+
+Join oc where
+oc.catalog_cd = ita.order_cat_cd 
+
+join 
+ic where 
+ic.interp_id =ita.interp_id
+
+join a where
+a.interp_id = ic.interp_id
+
+
+join
+irr where
+irr.interp_id = a.interp_id
+
+go
+

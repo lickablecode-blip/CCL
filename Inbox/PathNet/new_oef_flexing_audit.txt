@@ -1,0 +1,98 @@
+/*
+order location   = 0
+patient location = 1
+application 	 = 2
+position	 = 3
+encounter type   = 4
+*/
+
+select distinct 			;distinct added 7/14
+		;into "oef_flex"
+  flex_cd = uar_get_code_display(a.flex_cd),
+  a.flex_type_flag,
+  a.default_value,
+  a.accept_flag,
+  format_name = o.oe_format_name,
+  ff.accept_flag,
+  field_name = oef.description
+from accept_format_flexing a
+    ,order_entry_format o
+    ,order_entry_fields oef
+    ,oe_format_fields ff
+plan a
+join o
+  where o.oe_format_id = a.oe_format_id
+join oef
+  where oef.oe_field_id = a.oe_field_id
+join ff
+  where ff.oe_format_id = a.oe_format_id
+    and ff.oe_field_id = a.oe_field_id
+order by format_name, a.flex_type_flag, flex_cd, field_name
+head report
+  col 0 "FORMAT NAME"
+  row+1
+  col 0 "***********"
+  row+1
+  col 5 "FIELD NAME"
+  col 40 "FLEX TYPE"
+  col 60 "FLEX VALUE"
+  col 90 "BASE ACCEPT FLAG"
+  col 110 "FLEX ACCEPT FLAG"
+  col 130 "DEFAULT VALUE"
+  row+1
+  col 5 "**********"
+  col 40 "*********"
+  col 60 "**********"
+  col 90 "****************"
+  col 110 "***************"
+  col 130 "*************"
+  row+1
+head a.oe_format_id
+  col 0 format_name
+  row+1
+head a.oe_field_id
+  col 5 field_name
+detail					;detail added 7/14  
+  case(a.flex_type_flag)
+  of 0:
+    col 40 "Order Location"
+  of 1:
+    col 40 "Patient Location"
+  of 2:
+    col 40 "Application"
+  of 3:
+    col 40 "Position"
+  of 4:
+    col 40 "Encounter Type"
+  endcase
+
+  col 60 flex_cd
+
+  case(ff.accept_flag)
+  of 0:
+    col 90 "Required"
+  of 1:
+    col 90 "Optional"
+  of 2:
+    col 90 "Do Not Display"
+  of 3:
+    col 90 "Display Only"
+  endcase
+
+  case(a.accept_flag)
+  of 0:
+    col 110 "Required"
+  of 1:
+    col 110 "Optional"
+  of 2:
+    col 110 "Do Not Display"
+  of 3:
+    col 110 "Display Only"
+  endcase
+
+  col 130 a.default_value
+  row+1
+foot a.oe_format_id
+  row+1
+with maxcol=250
+go

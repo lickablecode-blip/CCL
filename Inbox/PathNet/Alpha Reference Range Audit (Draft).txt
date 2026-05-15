@@ -1,0 +1,51 @@
+
+====================================================================================================
+====================================================================================================
+
+DRAFT OF ALPHA REFERENCE RANGE AUDIT TO BE RUN OUT OF DV DEV:  
+
+====================================================================================================
+====================================================================================================
+
+
+select 
+	dta.mnemonic,
+	Service_Resource = uar_get_code_display( rrf.service_resource_cd ),
+	n.short_string,
+	n.mnemonic,
+	ar.sequence,
+	ar.default_ind,
+	ar.use_units_ind,
+	Result_flag = uar_get_code_description( ar.result_process_cd ),
+	ar.reference_ind,
+	Units_of_Measure = uar_get_code_display( rrf.units_cd)
+
+from
+	discrete_task_assay  dta,
+	  reference_range_factor  rrf,
+	    alpha_responses  ar,
+	      nomenclature  n
+
+plan dta
+  where dta.activity_type_cd = 692.00
+    and dta.active_ind = 1
+
+join rrf
+  where rrf.task_assay_cd = dta.task_assay_cd
+    and rrf.active_ind = 1
+
+join ar
+  where ar.reference_range_factor_id = rrf.reference_range_factor_id
+    and ar.active_ind = 1
+
+join n
+  where n.nomenclature_id = ar.nomenclature_id
+    and n.active_ind = 1
+
+order by	dta.mnemonic,
+		  ar.sequence
+
+go
+
+====================================================================================================
+====================================================================================================

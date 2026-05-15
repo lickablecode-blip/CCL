@@ -1,0 +1,12 @@
+select 
+	cv.display,
+	cv.description
+
+from
+	code_value cv
+
+where cv.code_set = 2059
+  and cv.active_ind = 1
+
+order by	cv.display
+go

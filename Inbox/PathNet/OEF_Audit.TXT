@@ -1,0 +1,19 @@
+select
+  o.oe_format_name,
+  oef.description,
+  ff.Default_Value,
+  Default_Code_Value=ff.DEFAULT_PARENT_ENTITY_ID,
+  ff.Group_Seq,
+  ff.Field_Seq
+  
+from order_entry_format o
+    ,order_entry_fields oef
+    ,oe_format_fields ff
+plan o
+where o.action_type_cd = 2534
+join ff
+  where ff.oe_format_id = o.oe_format_id
+join oef
+  where oef.oe_field_id = ff.oe_field_id
+  
+order by o.oe_format_name,ff.Group_seq,ff.Field_seq

@@ -1,0 +1,10 @@
+select into "nl:"
+	cc_coll_class_disp = uar_get_code_display( cc.coll_class_cd ),
+	cc.max_class_volume
+
+from
+	collection_class  cc
+
+where cc.coll_class_cd > 0
+
+order by	cc_coll_class_disp
