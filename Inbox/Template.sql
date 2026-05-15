@@ -1,9 +1,11 @@
-/********************************************************
-; Name: Scratchpad 
-; Purpose: 
-; Version: 20260501
-; Notes: 
-********************************************************/
+/*
+* Name:  
+* Source: 
+* Purpose: 
+* Version: 20260501
+* Notes: 
+*/
+
 ;DECLARE
 SELECT ;DISTINCT 
 FROM 
