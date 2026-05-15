@@ -1,0 +1,67 @@
+/* VERSION 4/29 */
+select e.encntr_id
+, encounter_facility = uar_get_code_display(e.loc_facility_cd)
+, encounter_nurse_unit = uar_get_code_display(e.loc_nurse_unit_cd)
+, requested_facility = uar_get_code_display(o.future_location_facility_cd)
+, requested_unit = uar_get_code_display(o.future_location_nurse_unit_cd)
+, object_sub = uar_get_code_display(so.object_sub_cd)
+, o.order_id
+, o.person_id
+, o.order_detail_display_line
+, EDIPN = pa.alias
+, p.name_full_formatted
+, o.orig_order_dt_tm
+, o.ordered_as_mnemonic
+, o.order_detail_display_line
+, o.active_ind
+, order_status=uar_get_code_display(o.order_status_cd)
+from sch_object so
+, cust_loc_agency_reltn c  ;; FOR VALIDATION ONLY
+, code_value cv  ;; FOR VALIDATION ONLY
+, person p  ;; FOR VALIDATION ONLY
+, person_alias pa  ;; FOR VALIDATION ONLY
+, sch_entry se
+, (left join sch_event_attach sea on sea.sch_event_id = se.sch_event_id
+	and sea.end_effective_dt_tm > sysdate
+	and sea.version_dt_tm > sysdate
+	and sea.active_ind = 1)
+, (left join orders o on o.order_id = sea.order_id
+	and o.active_ind = 1)
+, (left join encounter e on (e.encntr_id = o.originating_encntr_id))
+plan so
+	where so.mnemonic_key in ("UNKNOWN QUEUE")
+	and so.object_type_cd = value(uar_get_code_by("MEANING", 16146, "QUEUE")) 
+	and so.end_effective_dt_tm > sysdate
+	and so.version_dt_tm > sysdate
+	and so.active_ind = 1
+join se
+	where se.queue_id = so.sch_object_id
+	and se.entry_state_cd = value(uar_get_code_by_cki("CKI.CODEVALUE!2418568")) /*Pending*/
+	and se.req_action_cd = value(uar_get_code_by_cki("CKI.CODEVALUE!6153")) /*Schedule/Book*/
+	and se.active_ind = 1
+	and se.end_effective_dt_tm > sysdate
+	and se.version_dt_tm > sysdate
+	and se.request_made_dt_tm > cnvtdatetime("26-Mar-2026")  /*CHANGE TO RELATIVE DATE*/
+	and se.request_made_dt_tm < cnvtdatetime("26-Apr-2026")  ;;added 4/28 per Alt
+join p  ;; FOR VALIDATION ONLY
+	where p.person_id=se.person_id
+	and p.active_ind = 1
+join pa  ;; FOR VALIDATION ONLY
+	where pa.person_id = p.person_id
+	and pa.person_alias_type_cd = 22 /*EDIPN*/
+	and pa.active_ind = 1
+	and pa.end_effective_dt_tm > sysdate
+join sea
+join o
+join e  ;; FOR VALIDATION ONLY
+join c  ;; FOR VALIDATION ONLY
+	where c.location_cd = e.loc_facility_cd
+	and c.agency = "DOD"
+	and c.location_cd NOT IN (6295542077, 1275479033) ;DoD privileged locations
+join cv  ;; FOR VALIDATION ONLY
+	where cv.code_value = c.location_cd
+	and cv.display_key != "ZZ*"
+order by  ;; FOR VALIDATION ONLY
+	o.order_id
+with   ;; FOR VALIDATION ONLY
+maxrec=10000, time=30,	nocounter
