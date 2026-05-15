@@ -1,0 +1,80 @@
+set cPRIMARYEVENT = uar_get_code_by ("MEANING", 18189, "CLINCALEVENT") go
+
+free record qual go
+record qual 
+(
+  1 qual [*]
+    2 dcp_forms_ref_id = f8
+    2 form_desc = vc
+    2 form_def = vc
+    2 position_cd = f8
+    2 loc_facility_cd = f8
+    2 cnt = i4
+)
+go
+
+select into "nl:"
+from
+  dcp_forms_activity fa,
+  dcp_forms_ref ref,
+  dcp_forms_activity_comp dfac,
+  clinical_event ce,
+  prsnl pr,
+  encounter e
+plan fa 
+  where fa.form_dt_tm between cnvtdatetime(curdate-90,000) and cnvtdatetime(curdate,000) 
+  and fa.active_ind = 1
+join ref 
+  where ref.dcp_forms_ref_id = fa.dcp_forms_ref_id
+  and fa.version_dt_tm >= ref.beg_effective_dt_tm
+  and fa.version_dt_tm < ref.end_effective_dt_tm
+join dfac
+  where dfac.dcp_forms_activity_id = fa.dcp_forms_activity_id
+  and dfac.component_cd = cPRIMARYEVENT
+join ce
+  where ce.event_id = dfac.parent_entity_id
+  and ce.valid_until_dt_tm > cnvtdatetime(curdate,curtime3)
+join pr
+  where pr.person_id = ce.performed_prsnl_id
+join e
+  where e.encntr_id = ce.encntr_id
+order by
+  fa.dcp_forms_ref_id,
+  pr.position_cd,
+  e.loc_facility_cd
+head report
+  qual_size = 0
+head fa.dcp_forms_ref_id
+  null
+head pr.position_cd
+  null
+head e.loc_facility_cd  
+  qual_size = qual_size + 1
+  stat = alterlist(qual->qual, qual_size)
+  qual->qual[qual_size]->dcp_forms_ref_id = fa.dcp_forms_activity_id
+  qual->qual[qual_size]->form_desc = ref.description
+  qual->qual[qual_size]->form_def = ref.definition
+  qual->qual[qual_size]->position_cd = pr.position_cd
+  qual->qual[qual_size]->loc_facility_cd = e.loc_facility_cd
+detail
+  qual->qual[qual_size]->cnt = qual->qual[qual_size]->cnt + 1
+with
+  nullreport
+go
+
+select
+  dcp_forms_ref_id = qual->qual[d.seq]->dcp_forms_ref_id,
+  form_description = substring(1,200,qual->qual[d.seq]->form_desc),
+  form_definition = substring(1,200,qual->qual[d.seq]->form_def),
+  position = uar_get_code_display(qual->qual[d.seq]->position_cd),
+  facility = uar_get_code_display(qual->qual[d.seq]->loc_facility_cd),
+  usage_cnt = qual->qual[d.seq]->cnt
+from
+  (dummyt d with seq = value(size(qual->qual,5)))
+plan d
+  where qual->qual[d.seq]->dcp_forms_ref_id > 0
+  and qual->qual[d.seq]->position_cd > 0
+  and qual->qual[d.seq]->loc_facility_cd > 0
+with
+  separator = "|"
+go
