@@ -1,0 +1,87 @@
+/*
+* Name:     Time Difference in Med Tasks
+* Source:   Inbox/PowerForms/Time Difference in Med Tasks.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    70
+* Notes:
+*/
+
+SELECT DISTINCT
+       SCAN_DATE = C.valid_from_dt_tm
+       , PERFORMED_TIME = C.performed_dt_tm
+       , TIME_DIFFERENCE = DATETIMEDIFF(C.valid_from_dt_tm, C.performed_dt_tm)
+       ,TIME_DIFFERENCE = FORMAT (DATETIMEDIFF(C.valid_from_dt_tm, C.performed_dt_tm), "HH:MM;;Z")
+       , FIN = ea.alias
+       , p.name_full_formatted
+       ,SOURCE = IF(M.SOURCE_APPLICATION_FLAG = 0)
+       "SOURCE NOT INDICATED/DEFAULT"
+       ELSEIF(M.SOURCE_APPLICATION_FLAG = 1)
+       "CareMobile"
+       ELSEIF(M.SOURCE_APPLICATION_FLAG = 2)
+       "CareAdmin"
+       ELSEIF(M.SOURCE_APPLICATION_FLAG = 3)
+       "PowerChart"
+       ENDIF
+       , RN = PR.NAME_FULL_FORMATTED
+       , FACILITY = UAR_GET_CODE_DISPLAY (E.loc_facility_cd)
+       , C_CATALOG_DISP = UAR_GET_CODE_DISPLAY(C.CATALOG_CD)
+       , C.CLINICAL_EVENT_ID
+       , C.ORDER_ID
+       , C_CONTRIBUTOR_SYSTEM_DISP = UAR_GET_CODE_DISPLAY(C.CONTRIBUTOR_SYSTEM_CD)
+       , C.EVENT_TAG
+       , C_RESULT_STATUS_DISP = UAR_GET_CODE_DISPLAY(C.RESULT_STATUS_CD)
+       , C_RESULT_TIME_UNITS_DISP = UAR_GET_CODE_DISPLAY(C.RESULT_TIME_UNITS_CD)
+       , C_RESULT_UNITS_DISP = UAR_GET_CODE_DISPLAY(C.RESULT_UNITS_CD)
+       , C_EVENT_DISP = UAR_GET_CODE_DISPLAY(C.EVENT_CD)
+       , C.EVENT_TITLE_TEXT
+       , C.PARENT_EVENT_ID
+       , C.NOTE_IMPORTANCE_BIT_MAP
+       , C.CE_DYNAMIC_LABEL_ID
+       , C_EVENT_CLASS_DISP = UAR_GET_CODE_DISPLAY(C.EVENT_CLASS_CD)
+       , C.EVENT_ID
+       , C_EVENT_RELTN_DISP = UAR_GET_CODE_DISPLAY(C.EVENT_RELTN_CD)
+       , C.MODIFIER_LONG_TEXT_ID
+       , C.NOMEN_STRING_FLAG
+ 
+FROM
+       CLINICAL_EVENT   C
+       , encntr_alias   ea
+       , person   p
+       , encounter   e
+       , med_admin_event m 
+       , prsnl pr
+       , orders o
+ 
+plan c
+ 
+WHERE ;C.ORDER_ID = 2394669003
+C.updt_dt_tm BETWEEN CNVTLOOKBEHIND("15,D") and CNVTLOOKBEHIND("12,D") 
+; c.valid_from_dt_tm BETWEEN CNVTLOOKBEHIND("2,D") and CNVTLOOKAHEAD("1,D")
+;and C.event_tag = "Begin Bag*"
+AND C.valid_from_dt_tm != C.performed_dt_tm
+AND DATETIMEDIFF(C.valid_from_dt_tm, C.performed_dt_tm) between 0.23 and 0.50
+;and c.event_title_text = "IVPARENT" ;AND C.result_units_cd = 293.00
+;and c.event_class_cd in (236,232)
+ 
+ 
+JOIN m where M.EVENT_ID = outerjoin (C.EVENT_ID)
+JOIN PR WHERE outerjoin (M.PRSNL_ID) = PR.PERSON_ID
+join o where o.order_id = c.order_id
+and o.catalog_type_cd =        2516.00
+join e
+where e.encntr_id = c.encntr_id
+join ea
+where ea.encntr_id = e.encntr_id
+and ea.encntr_alias_type_cd = 1077
+;and ea.alias_pool_cd =     7543184.00
+join p
+where c.person_id= p.person_id
+ 
+ORDER BY
+       TIME_DIFFERENCE
+       , C.event_id
+       , c.order_id
+ 
+WITH MAXREC = 1000, NOCOUNTER, SEPARATOR=" ", FORMAT, TIME = 300,  format(date,"mm-dd-yyyy hh:mm")

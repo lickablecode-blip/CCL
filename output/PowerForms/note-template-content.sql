@@ -1,0 +1,29 @@
+/*
+* Name:     Note Template & content
+* Source:   Inbox/Notes & Templates/Note Template & content.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    15
+* Notes:
+*/
+
+SELECT
+                DRT.DESCRIPTION_TXT
+                , DRT.TITLE_TXT
+                , D_EMR_CONTENT_TYPE_DISP = UAR_GET_CODE_DISPLAY(D.EMR_CONTENT_TYPE_CD)
+                , D.DESCRIPTION_TXT
+ 
+FROM
+                DD_REF_TEMPLATE   DRT
+                , DD_REF_EMR_CONTENT   D
+                , DD_REF_TEMPLATE_CONTENT_R   DR
+ 
+PLAN DRT
+join dr where DR.DD_REF_TEMPLATE_ID = DRT.DD_REF_TEMPLATE_ID 
+join d where D.DD_REF_EMR_CONTENT_ID = DR.DD_REF_EMR_CONTENT_ID
+ 
+ORDER BY
+                DRT.DESCRIPTION_TXT
+ 
+WITH NOCOUNTER, SEPARATOR=" ", FORMAT

@@ -1,0 +1,19 @@
+/*
+* Name:     Positions, VPs, Views
+* Source:   Inbox/mPages/Positions, VPs, Views.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    9
+* Notes:
+*/
+
+select position.description, viewpoint.viewpoint_name, nvp.pvc_value, mpage.category_name, mpage.category_mean, mpage.br_datamart_category_id
+from name_value_prefs nvp, mp_viewpoint viewpoint, code_value position, detail_prefs dp, mp_viewpoint_reltn view_reltn, br_datamart_category mpage
+plan viewpoint where viewpoint.mp_viewpoint_id > 0
+join nvp where nvp.pvc_name = "REPORT_NAME" and findstring(viewpoint.viewpoint_name_key, nvp.pvc_value) > 0 
+join dp where dp.detail_prefs_id = nvp.parent_entity_id
+join position where dp.position_cd = position.code_value 
+join view_reltn where view_reltn.mp_viewpoint_id = viewpoint.mp_viewpoint_id
+join mpage where mpage.br_datamart_category_id = view_reltn.br_datamart_category_id 
+order by position.description, viewpoint.viewpoint_name

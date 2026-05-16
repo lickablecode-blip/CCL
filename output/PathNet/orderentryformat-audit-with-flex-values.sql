@@ -1,0 +1,54 @@
+/*
+* Name:     OrderEntryFormat Audit with Flex values
+* Source:   Inbox/PathNet/OrderEntryFormat Audit with Flex values.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PathNet  (reason: subfolder)
+* Lines:    42
+* Notes:
+*/
+
+****Order Entry Format Audit includes all action types and flex values
+
+
+select
+    catalog_type=UAR_GET_CODE_DISPLAY(oef.catalog_type_cd),
+    format_name = oef.oe_format_name,
+    action_type = uar_get_code_display(oef.action_type_cd),
+    field_name = fld.description,
+    field_label = off.label_text,
+    off.accept_flag,
+    fld.field_type_flag,
+    fld.codeset,
+    off.default_value,
+    off.group_seq,
+    off.field_seq,
+    aff.flex_type_flag,
+    flex_type_value = uar_get_code_display(aff.flex_cd),
+    aff.accept_flag,
+    aff.default_value
+from
+    order_entry_format oef,
+    order_entry_fields fld,
+    oe_format_fields off,
+    accept_format_flexing aff,
+    dummyt d1, dummyt d2
+plan oef where
+    oef.oe_format_id in (
+    select distinct oe_format_id
+    from order_catalog_synonym
+    where active_ind = 1
+    !and not catalog_type_cd in (2516, 2517)
+    and catalog_type_cd = 3856)
+join d1
+join off where
+    off.oe_format_id = oef.oe_format_id and
+    off.action_type_cd = oef.action_type_cd
+join fld where fld.oe_field_id = off.oe_field_id
+join d2
+join aff
+    where aff.oe_format_id = off.oe_format_id
+    and aff.oe_field_id = off.oe_field_id
+order by catalog_type, format_name, action_type, off.group_seq, off.field_seq
+with outerjoin = d2
+go

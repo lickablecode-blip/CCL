@@ -1,0 +1,37 @@
+/*
+* Name:     Care Team Current Configuration
+* Source:   Inbox/mPages/Care Team Current Configuration.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    27
+* Notes:
+*/
+
+Current Configuration
+select distinct
+agency=lar.agency
+, facility=uar_get_code_display(pct.facility_cd)
+, medical_service = uar_get_code_display(pct.pct_med_service_cd)
+, care_team = uar_get_code_display(pct.pct_team_cd)
+FROM
+pct_care_team   pct
+, code_value cv1
+, code_value cv2
+, cust_loc_agency_reltn lar
+plan pct
+where pct.pct_care_team_id = pct.orig_pct_team_id
+and pct.prsnl_id = 0.00
+and pct.end_effective_dt_tm > cnvtdatetime(curdate, curtime3)
+and pct.active_ind = 1
+join cv1
+where cv1.code_value = pct.pct_med_service_cd
+join cv2
+where cv2.code_value = pct.pct_team_cd
+join lar
+where lar.location_cd = pct.facility_cd
+order by 
+agency
+, facility
+, medical_service
+, care_team

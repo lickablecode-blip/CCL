@@ -1,0 +1,21 @@
+/*
+* Name:     Care Teams
+* Source:   Inbox/mPages/Care Teams.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    11
+* Notes:
+*/
+
+select distinct
+facility=cv.description
+, medical_service=uar_get_code_display(ct.pct_med_service_cd)
+, team=uar_get_code_display(ct.pct_team_cd)
+from
+pct_care_team ct
+, code_value cv
+plan ct where ct.pct_care_team_id > 0.00
+and ct.facility_cd != 0.00
+join cv where cv.code_value = ct.facility_cd
+order by cv.description, medical_service, team

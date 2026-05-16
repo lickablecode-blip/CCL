@@ -1,0 +1,38 @@
+/*
+* Name:     Virtual Viewing Orders
+* Source:   Inbox/mPages/Virtual Viewing Orders.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    28
+* Notes:
+*/
+
+select
+catalog_description=o.description
+, synonym_type=uar_get_code_display(os.mnemonic_type_cd)
+, synonym_name=os.mnemonic
+, facility=cv.display
+, lar.agency
+from
+order_catalog o
+, order_catalog_synonym os
+, ocs_facility_r vv
+, code_value cv
+, cust_loc_agency_reltn lar
+plan o where o.catalog_cd in 
+(110543657.00
+, 2922071.00
+, 58127085.00)
+join os where os.catalog_cd = o.catalog_cd
+and os.active_ind = 1
+join vv where vv.synonym_id = os.synonym_id
+join cv where cv.code_value = vv.facility_cd
+;and cv.code_set = 220
+and cv.active_ind = 1
+join lar where lar.location_cd = cv.code_value
+order by 
+o.description
+, synonym_type desc
+, synonym_name
+, facility

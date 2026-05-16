@@ -1,0 +1,24 @@
+/*
+* Name:     Care Pathway Usage
+* Source:   Inbox/mPages/Care Pathway Usage.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    14
+* Notes:
+*/
+
+select distinct
+pathway=c.pathway_name
+, count=count(c.pathway_name)
+from 
+cp_pathway_activity a
+, cp_pathway c
+plan a where a.person_id > 0.00
+and a.end_effective_dt_tm > cnvtdatetime(curdate,curtime)
+and a.pathway_activity_status_cd in (104529077.00,104529083.00)
+and a.beg_effective_dt_tm > cnvtdatetime('01-OCT-2024'); update date
+join c where c.cp_pathway_id = a.cp_pathway_id
+and c.pathway_type_cd =    33864437.00
+group by c.pathway_name
+order by count desc

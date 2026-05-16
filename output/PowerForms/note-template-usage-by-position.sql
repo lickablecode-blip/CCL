@@ -1,0 +1,41 @@
+/*
+* Name:     Note Template Usage, by position
+* Source:   Inbox/Notes & Templates/Note Template Usage, by position.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    26
+* Notes:
+*/
+
+select distinct
+                ;Patient = p.name_full_formatted
+                FIN = e.encntr_financial_id
+                ,Author = pr.name_full_formatted
+                ,Position = uar_get_code_display(pr.position_cd)
+		,Note_Title = ce.event_title_text
+                ,Note_Type = ce.event_tag
+                ,Status = uar_get_code_display(ce.result_status_cd)
+                ,Location = uar_get_code_display(e.loc_facility_cd)
+                ,Updated = format(ddc.updt_dt_tm, "MM/DD/YYYY HH:MM;;d")
+                
+from
+                dd_contribution ddc
+                ,prsnl pr
+                ,person p
+                ,encounter e
+                ,clinical_event ce
+
+plan ce
+                where ce.valid_until_dt_tm > cnvtdatetime (curdate,curtime)
+                join ddc where ddc.doc_event_id = ce.event_id
+                join e where ddc.encntr_id = outerjoin(e.encntr_id)
+                                and ddc.updt_dt_tm > cnvtdatetime("01-jul-2021 00:00:00")
+                                and ddc.updt_dt_tm < cnvtdatetime ("07-jul-2021 11:59:59")
+                join p where p.person_id = ddc.person_id
+                join pr where pr.person_id = outerjoin(ddc.author_id)
+
+
+order by  e.encntr_id, ddc.updt_dt_tm
+
+with maxrec = 5000

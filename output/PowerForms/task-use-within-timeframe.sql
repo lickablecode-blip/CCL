@@ -1,0 +1,45 @@
+/*
+* Name:     Task Use within timeframe
+* Source:   Inbox/PowerForms/Task Use within timeframe.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    30
+* Notes:
+*/
+
+SELECT
+T.ACTIVE_STATUS_DT_TM
+, T.ACTIVE_STATUS_PRSNL_ID
+, T_CHARTED_BY_AGENT_DISP = UAR_GET_CODE_DISPLAY(T.CHARTED_BY_AGENT_CD)
+, T.COMMENTS
+, T.ENCNTR_ID
+, T.LAST_UTC_TS
+, T.LINKED_ORDER_IND
+, T.ORDER_ID
+, T.PERSON_ID
+, T.REFERENCE_TASK_ID
+, T_TASK_ACTIVITY_DISP = UAR_GET_CODE_DISPLAY(T.TASK_ACTIVITY_CD)
+, T_TASK_ACTIVITY_CLASS_DISP = UAR_GET_CODE_DISPLAY(T.TASK_ACTIVITY_CLASS_CD)
+, T_TASK_CLASS_DISP = UAR_GET_CODE_DISPLAY(T.TASK_CLASS_CD)
+, T.TASK_CREATE_DT_TM
+, T.TASK_DT_TM
+, T.TASK_ID
+, O.TASK_DESCRIPTION
+, O_TASK_TYPE_DISP = UAR_GET_CODE_DISPLAY(O.TASK_TYPE_CD)
+ 
+FROM
+TASK_ACTIVITY   T
+, ORDER_TASK   O
+ 
+Plan O 
+ where o.task_description = "Pain Reassessment Pediatric"
+;; where o.task_type_cd =  9604091645.00
+ 
+ 
+join T
+  where t.reference_task_id = o.reference_task_id
+and( t.active_status_dt_tm >= cnvtdatetime(cnvtdate(07242016),0001)
+     and t.active_status_dt_tm <= cnvtdatetime(cnvtdate(01242017),2359)) 
+      
+WITH time = 240, NOCOUNTER, SEPARATOR=" ", FORMAT

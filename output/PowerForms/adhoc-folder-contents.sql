@@ -1,0 +1,55 @@
+/*
+* Name:     AdHoc Folder Contents
+* Source:   Inbox/PowerForms/AdHoc Folder Contents.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    40
+* Notes:
+*/
+
+; Returns Root Folders, Folders, & Folder Contents (Tasks)
+
+SELECT
+root_folder = c1.short_description
+, folder_name = c2.short_description
+, ot.task_description
+, dcp.DEFINITION
+, form_description = dcp.description
+, DCP_TEXT_RENDITION_EVENT_DISP = UAR_GET_CODE_DISPLAY(DCP.TEXT_RENDITION_EVENT_CD)
+, task_active = ot.active_ind
+ 
+FROM
+alt_sel_cat   c1
+, alt_sel_list   l1
+, alt_sel_cat   c2
+, alt_sel_list   l2
+, order_task   ot
+, dcp_forms_ref   dcp
+, dummyt   d
+ 
+plan c1 where
+  c1.adhoc_ind = 1
+join l1 where
+  l1.alt_sel_category_id = c1.alt_sel_category_id  and
+  l1.list_type = 1  and
+  l1.child_alt_sel_cat_id > 0
+join c2 where
+  c2.alt_sel_category_id = l1.child_alt_sel_cat_id
+join l2 where
+  l2.alt_sel_category_id = c2.alt_sel_category_id  and
+  l2.list_type = 4  and
+  l2.reference_task_id > 0
+join ot where
+  ot.reference_task_id = l2.reference_task_id
+join d
+join dcp where
+  dcp.dcp_forms_ref_id = ot.dcp_forms_ref_id  and
+  dcp.active_ind = 1
+ 
+ORDER BY
+root_folder
+, folder_name
+, l2.sequence
+ 
+WITH dontcare = dcp

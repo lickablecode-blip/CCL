@@ -1,0 +1,30 @@
+/*
+* Name:     Collection Routes
+* Source:   Inbox/PathNet/Collection Routes.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PathNet  (reason: subfolder)
+* Lines:    20
+* Notes:
+*/
+
+select
+ Location_Route = UAR_GET_CODE_DISPLAY(rst.collection_route_cd), 
+ rst.route_start_time,
+ rst.look_ahead_minutes,
+ rst.cutoff_minutes_for_orders,
+ rst.nurse_collect_ind,
+ Printer = rst.print_queue,
+ Specimen_Type = UAR_GET_CODE_DISPLAY(rstr.specimen_type_cd),
+ Collection_Priority= UAR_GET_CODE_DISPLAY(rcpr.collection_priority_cd)
+from 
+ route_start_time rst,
+ route_specimen_type_r rstr,
+ route_collection_priority_r rcpr
+plan rst
+join rstr
+  where rst.collection_route_cd = rstr.collection_route_cd
+join rcpr
+  where rst.collection_route_cd = rcpr.collection_route_cd
+order by rst.collection_route_cd
+go

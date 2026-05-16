@@ -1,0 +1,56 @@
+/*
+* Name:     Dyn Doc Smart Template Contents
+* Source:   Inbox/Notes & Templates/Dyn Doc Smart Template Contents.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    31
+* Notes:
+*/
+
+; run below and it will show you a list of all reference templates with all the smart templates in them
+ 
+ 
+SELECT
+                DR.DESCRIPTION_TXT
+                , C_SMART_TEMPLATE_DISP = UAR_GET_CODE_DISPLAY(C.SMART_TEMPLATE_CD)
+                , C.CKI
+
+FROM
+                DD_REF_TMPLT_CN_TMPLT_R   D
+                , CLINICAL_NOTE_TEMPLATE   C
+                , DD_REF_TEMPLATE   DR
+
+PLAN d 
+JOIN c where C.TEMPLATE_ID = D.CLINICAL_NOTE_TEMPLATE_ID
+join dr WHERE DR.DD_REF_TEMPLATE_ID = D.DD_REF_TEMPLATE_ID
+
+ORDER BY
+                DR.DESCRIPTION_TXT
+
+WITH MAXREC = 5000, NOCOUNTER, SEPARATOR=" ", FORMAT
+ 
+ 
+
+;        Lists All HTML Templates and which EMR filters are coded into the note (If you want to change a filter to an ST you will know all HTML Templates that have to be updated)
+ 
+ 
+SELECT
+                DRT.DESCRIPTION_TXT
+                , DRT.TITLE_TXT
+                , D_EMR_CONTENT_TYPE_DISP = UAR_GET_CODE_DISPLAY(D.EMR_CONTENT_TYPE_CD)
+                , D.DESCRIPTION_TXT
+
+FROM
+                DD_REF_TEMPLATE   DRT
+                , DD_REF_EMR_CONTENT   D
+                , DD_REF_TEMPLATE_CONTENT_R   DR
+
+PLAN DRT
+join dr where DR.DD_REF_TEMPLATE_ID = DRT.DD_REF_TEMPLATE_ID
+join d where D.DD_REF_EMR_CONTENT_ID = DR.DD_REF_EMR_CONTENT_ID
+
+ORDER BY
+                DRT.DESCRIPTION_TXT
+
+WITH NOCOUNTER, SEPARATOR=" ", FORMAT

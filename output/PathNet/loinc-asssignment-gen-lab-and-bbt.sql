@@ -1,0 +1,32 @@
+/*
+* Name:     LOINC asssignment Gen Lab and BBT
+* Source:   Inbox/PathNet/LOINC asssignment Gen Lab and BBT.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PathNet  (reason: subfolder)
+* Lines:    18
+* Notes:
+*/
+
+SELECT
+	D.TASK_ASSAY_CD
+	, ACTIVITY_TYPE = UAR_GET_CODE_DISPLAY(D.ACTIVITY_TYPE_CD)
+	, DTA_MNEMONIC = D.MNEMONIC
+	, SERVICE_RESOURCE = UAR_GET_CODE_DISPLAY(C.SERVICE_RESOURCE_CD)
+	, CONCEPT_CKI_GEN_LAB = C.CONCEPT_CKI
+	, CONCEPT_CKI_BB = CI.CONCEPT_CKI
+
+FROM
+	DISCRETE_TASK_ASSAY   D
+	, CONCEPT_IDENTIFIER_DTA   C
+	, CONCEPT_IDENT_BB_DTA   CI
+
+PLAN d where D.ACTIVITY_TYPE_CD in (692,674)   and d.active_ind = 1
+join c where C.TASK_ASSAY_CD = outerjoin(D.TASK_ASSAY_CD)
+join ci WHERE CI.TASK_ASSAY_CD = outerjoin(D.TASK_ASSAY_CD)
+
+ORDER BY
+	ACTIVITY_TYPE
+	, D.MNEMONIC
+
+WITH NOCOUNTER, SEPARATOR=" ", FORMAT

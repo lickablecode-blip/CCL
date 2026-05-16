@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-import_inbox.py - Import loose .txt CCL files into a categorized library.
+import_inbox.py - Import loose CCL files into a categorized output library.
 
-Drop .txt files into Inbox/. Each run renames them to .sql, classifies them as
-a Script (>= 5 code lines) or a Snippet (< 5), infers a category folder, writes
-the file with a small provenance header, and deletes the source .txt.
+Drop .txt/.prg files into Inbox/ subdirectories. Each run renames them to
+.sql, classifies them into an output/ category folder using the Inbox
+subfolder name as the primary signal, writes the file with a provenance
+header, and deletes the source file.
 
 Dedup: exact duplicates (by raw or normalized content hash) are skipped;
-near-duplicates are parked in Inbox/review/ for manual decision. State lives in
-.import-manifest.json and self-heals from the Scripts/ and Snippets/ trees.
+near-duplicates are parked in Inbox/review/ for manual decision. State lives
+in .import-manifest.json and self-heals from the output/ tree.
 
-Self-contained: single file, Python stdlib only. No imports from this repo's
-other modules and no dependency on the "Script and Snippet Exports/" tree.
+Self-contained: single file, Python stdlib only.
 
 Usage:
   python3 import_inbox.py [--dry-run] [--keep] [--similarity 0.92] [--reindex]
@@ -32,17 +32,27 @@ sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 ROOT = Path(__file__).parent
 INBOX = ROOT / "Inbox"
 REVIEW = INBOX / "review"
-SCRIPTS = ROOT / "Scripts"
-SNIPPETS = ROOT / "Snippets"
+OUTPUT = ROOT / "output"
 MANIFEST = ROOT / ".import-manifest.json"
 
-SNIPPET_LINES = 5
-MANIFEST_VERSION = 1
+MANIFEST_VERSION = 2
 DEFAULT_SIMILARITY = 0.92
 LENGTH_BAND = 0.25  # only compare near-dup candidates within +/-25% norm length
 
+IMPORTABLE_EXTS = {".txt", ".prg"}
+
+# ── Inbox subfolder → output category (highest-priority classification signal) ─
+SUBFOLDER_CATEGORY = {
+    "mPages":            "MPages",
+    "Notes & Templates": "PowerForms",
+    "Orders":            "Orders & Scheduling",
+    "PathNet":           "PathNet",
+    "Positions":         "Audit Programs",
+    "PowerForms":        "PowerForms",
+    "Rules & Alerts":    "Rules & Alerts",
+}
+
 # ── Curated taxonomy: page-slug → category folder ─────────────────────────────
-# Baked-in copy so this script has no cross-file dependency. Edit to extend.
 PAGE_TO_FOLDER = {
     # Audit Programs
     "application-access-audit": "Audit Programs",
@@ -55,24 +65,27 @@ PAGE_TO_FOLDER = {
     "personnel-detail-audit": "Audit Programs",
     "powerform-detail-audit": "Audit Programs",
     "scheduling-requests-audit": "Audit Programs",
-    # Apps and Tools
-    "application-launcher": "Apps and Tools",
-    "blob-out": "Apps and Tools",
-    "case-finder": "Apps and Tools",
-    "case-finder-diagnosis": "Apps and Tools",
-    "case-finder-events-and-orders": "Apps and Tools",
-    "millennium-data-dictionary-builder": "Apps and Tools",
-    "referral-management": "Apps and Tools",
-    "referral-management-javascript": "Apps and Tools",
-    "appointments-by-uic": "Apps and Tools",
-    "blood-bank-inventory": "Apps and Tools",
     # MPages
     "medication-list": "MPages",
     "discern-developer": "MPages",
-    # Orders and Scheduling
-    "unknown-queue-and-scheduling-list": "Orders and Scheduling",
+    "mpage-component": "MPages",
+    "mpage-filter": "MPages",
+    "mpage-document": "MPages",
+    "viewpoint": "MPages",
+    "master-mpage-query": "MPages",
+    # Orders & Scheduling
+    "unknown-queue-and-scheduling-list": "Orders & Scheduling",
+    "order-activity": "Orders & Scheduling",
+    "quick-visit": "Orders & Scheduling",
+    "virtual-viewing-orders": "Orders & Scheduling",
+    "retail-pharmacy": "Orders & Scheduling",
     # PowerForms
     "phadbtoolsexe-pharmacy-db-tools": "PowerForms",
+    "note-type": "PowerForms",
+    "note-template": "PowerForms",
+    "smart-template": "PowerForms",
+    "powerform": "PowerForms",
+    "task-catalog": "PowerForms",
     # Data Model
     "agency": "Data Model",
     "births": "Data Model",
@@ -128,47 +141,41 @@ PAGE_TO_FOLDER = {
     "uar-get-displaykey": "Functions",
     "eval-elh-change-bit": "Functions",
     "replace-crlf": "Functions",
-    # Recipes
-    "excluding-inactive-rows": "Recipes",
-    "excluding-test-patients": "Recipes",
-    "exists-not-exists": "Recipes",
-    "exploding-event-sets": "Recipes",
-    "inline-tables": "Recipes",
-    "joins": "Recipes",
-    "select-into": "Recipes",
-    "union": "Recipes",
-    "recursive-queries": "Recipes",
+    # PathNet
+    "orderable-audit": "PathNet",
+    "dta-evt-cd-audit": "PathNet",
+    "qc-rules-audit": "PathNet",
 }
 
 # ── Keyword scorer lexicon: category → distinctive substrings ─────────────────
-# Order matters: earlier categories win ties. Matched case-insensitively as
-# plain substrings (CCL identifiers and operators don't sit on \b boundaries).
 KEYWORD_LEXICON = [
+    ("PathNet", [
+        "order_catalog", "dup_checking", "order_catalog_synonym",
+        "assay_processing_r", "dta_", "qc_rules", "lab_sect",
+        "orderable_type_flag", "mig_imp", "mig_run",
+    ]),
     ("Functions", [
         "uar_get_code_description", "uar_get_code_display", "uar_get_definition",
         "uar_get_displaykey", "band(", "concat(", "datetimediff(", "datetimecmp(",
-        "datebirthformat(", "datedeceasedformat(", "regexplike(", "cnvtdatetime",
+        "datebirthformat(", "decdeceasedformat(", "regexplike(", "cnvtdatetime",
     ]),
     ("Audit Programs", [
         "audit", "usage report", "dm_info", "dm_query_history", "dm_audit",
     ]),
     ("PowerForms", [
         "powerform", "dcp_forms", "dcp_section", "dcp_input_ref", "dcp_grid",
+        "note_type", "dd_ref_template", "dd_ref_emr_content",
     ]),
     ("MPages", [
         "mpage", "discern.execute", "getrecorddata", "<html", "br_datamart",
+        "br_datamart_flex", "br_datamart_component",
     ]),
-    ("Orders and Scheduling", [
+    ("Orders & Scheduling", [
         "sch_appt", "sch_event", "order_status", "orders.activity_type",
         "sch_appt_slot",
     ]),
-    ("Apps and Tools", [
-        "drop program", "create program", "record reply", "record request",
-        "with replace", "execute ",
-    ]),
-    ("Recipes", [
-        "select into", "union all", "dummyt", "cross join", "connect by",
-        "left join",
+    ("Rules & Alerts", [
+        "special_duty", "rule_def", "ntt_alert", "alert_",
     ]),
     ("Data Model", [
         "clinical_event", "code_value_outcome", "code_value", "encntr_id",
@@ -178,6 +185,7 @@ KEYWORD_LEXICON = [
         "evaluate2(", "evaluate(", "go to ", "#exit_program", "endif",
     ]),
 ]
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 def slugify(text: str) -> str:
@@ -213,26 +221,28 @@ def count_code_lines(text: str) -> int:
     return sum(1 for ln in body.splitlines() if ln.strip())
 
 
-def infer_category(slug: str, content: str) -> tuple[str, str]:
-    """Return (category, reason)."""
-    # (a) slug lookup — try the full slug, then progressively shorter prefixes
+def infer_category(slug: str, content: str, subfolder: str = "") -> tuple[str, str]:
+    """Return (category, reason). Subfolder name is the highest-priority signal."""
+    # (a) subfolder hint
+    if subfolder and subfolder in SUBFOLDER_CATEGORY:
+        return SUBFOLDER_CATEGORY[subfolder], "subfolder"
+
+    # (b) slug lookup — try full slug, then progressively shorter prefixes
     parts = slug.split("-")
     for end in range(len(parts), 0, -1):
         candidate = "-".join(parts[:end])
         if candidate in PAGE_TO_FOLDER:
             return PAGE_TO_FOLDER[candidate], "slug-map"
 
-    # (b) existing-file match in the importer's own output trees
-    for base in (SCRIPTS, SNIPPETS):
-        if not base.exists():
-            continue
-        for cat_dir in base.iterdir():
+    # (c) existing-file match in the output tree
+    if OUTPUT.exists():
+        for cat_dir in OUTPUT.iterdir():
             if not cat_dir.is_dir():
                 continue
             if (cat_dir / f"{slug}.sql").exists():
                 return cat_dir.name, "existing-match"
 
-    # (c) keyword scorer
+    # (d) keyword scorer
     lowered = content.lower()
     best_cat, best_score = None, 0
     for cat, keywords in KEYWORD_LEXICON:
@@ -242,7 +252,6 @@ def infer_category(slug: str, content: str) -> tuple[str, str]:
     if best_cat and best_score >= 2:
         return best_cat, "keywords"
 
-    # (d) fallback
     return "Misc", "fallback"
 
 
@@ -259,18 +268,19 @@ def unique_target(folder: Path, slug: str) -> Path:
         n += 1
 
 
-def make_header(source_name: str, category: str, reason: str,
-                lines: int, is_snippet: bool) -> str:
+def make_header(stem: str, source_name: str, category: str, reason: str,
+                lines: int) -> str:
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    classification = "Snippet" if is_snippet else "Script"
     return (
         "/*\n"
-        f" * Imported from : {source_name}\n"
-        f" * Imported on   : {today}\n"
-        f" * Category      : {category}  (reason: {reason})\n"
-        f" * Lines         : {lines}\n"
-        f" * Classification: {classification}\n"
-        " */\n\n"
+        f"* Name:     {stem}\n"
+        f"* Source:   {source_name}\n"
+        "* Purpose:\n"
+        f"* Imported: {today}\n"
+        f"* Category: {category}  (reason: {reason})\n"
+        f"* Lines:    {lines}\n"
+        "* Notes:\n"
+        "*/\n\n"
     )
 
 
@@ -298,13 +308,11 @@ def entry_from_file(path: Path) -> dict:
     raw = path.read_text(encoding="utf-8", errors="replace")
     norm = normalize(raw)
     rel = path.relative_to(ROOT).as_posix()
-    is_snippet = path.parts[-3] == "Snippets" if len(path.parts) >= 3 else False
     return {
         "source_filename": path.name,
         "target_path": rel,
         "category": path.parent.name,
         "category_reason": "reindex",
-        "is_snippet": rel.startswith("Snippets/"),
         "lines": count_code_lines(raw),
         "raw_hash": sha256(strip_leading_header(raw)),
         "norm_hash": sha256(norm),
@@ -315,11 +323,10 @@ def entry_from_file(path: Path) -> dict:
 
 def scan_library() -> list[dict]:
     entries = []
-    for base in (SCRIPTS, SNIPPETS):
-        if not base.exists():
-            continue
-        for sql in sorted(base.rglob("*.sql")):
-            entries.append(entry_from_file(sql))
+    if not OUTPUT.exists():
+        return entries
+    for sql in sorted(OUTPUT.rglob("*.sql")):
+        entries.append(entry_from_file(sql))
     return entries
 
 
@@ -339,10 +346,13 @@ def heal_manifest(manifest: dict, reindex: bool) -> dict:
 
 
 # ── main import loop ──────────────────────────────────────────────────────────
-def process_file(txt: Path, manifest: dict, args) -> str:
-    """Import one .txt file. Returns a one-line status string."""
-    raw = txt.read_text(encoding="utf-8", errors="replace")
-    body = strip_leading_header(raw)
+def process_file(src: Path, manifest: dict, args, subfolder: str = "") -> str:
+    """Import one CCL source file. Returns a one-line status string."""
+    # .prg files carry an existing Cerner copyright header — preserve it as-is.
+    is_prg = src.suffix.lower() == ".prg"
+
+    raw = src.read_text(encoding="utf-8", errors="replace")
+    body = raw if is_prg else strip_leading_header(raw)
     raw_hash = sha256(body)
     norm = normalize(raw)
     norm_hash = sha256(norm)
@@ -351,8 +361,8 @@ def process_file(txt: Path, manifest: dict, args) -> str:
     for e in manifest["entries"]:
         if e["raw_hash"] == raw_hash or e["norm_hash"] == norm_hash:
             if not args.dry_run and not args.keep:
-                txt.unlink()
-            return f"EXACT-DUP   {txt.name}  ->  {e['target_path']}"
+                src.unlink()
+            return f"EXACT-DUP   {src.name}  ->  {e['target_path']}"
 
     # near-dup check
     norm_len = len(norm)
@@ -373,36 +383,37 @@ def process_file(txt: Path, manifest: dict, args) -> str:
         existing_slug = Path(best_target).stem
         if not args.dry_run:
             REVIEW.mkdir(parents=True, exist_ok=True)
-            dest = REVIEW / f"{txt.stem}__similar-to-{existing_slug}.txt"
-            txt.rename(dest)
-        return (f"NEAR-DUP    {txt.name}  ({best_ratio:.2f})  ->  {best_target}"
+            dest = REVIEW / f"{src.stem}__similar-to-{existing_slug}.txt"
+            src.rename(dest)
+        return (f"NEAR-DUP    {src.name}  ({best_ratio:.2f})  ->  {best_target}"
                 f"  [moved to Inbox/review/]")
 
     # classify + categorize
-    slug = slugify(txt.stem)
+    slug = slugify(src.stem)
     lines = count_code_lines(raw)
-    is_snippet = lines < SNIPPET_LINES
-    category, reason = infer_category(slug, body)
+    category, reason = infer_category(slug, body, subfolder)
 
-    base = SNIPPETS if is_snippet else SCRIPTS
-    folder = base / category
+    folder = OUTPUT / category
     target = unique_target(folder, slug)
     rel = target.relative_to(ROOT).as_posix()
 
-    if args.dry_run:
-        kind = "Snippet" if is_snippet else "Script"
-        return f"PLAN        {txt.name}  ->  {rel}  ({kind}, {lines} ln, {reason})"
+    try:
+        source_display = src.relative_to(ROOT).as_posix()
+    except ValueError:
+        source_display = src.name
 
-    header = make_header(txt.name, category, reason, lines, is_snippet)
+    if args.dry_run:
+        return f"PLAN        {src.name}  ->  {rel}  ({lines} ln, {reason})"
+
+    header = make_header(src.stem, source_display, category, reason, lines)
     folder.mkdir(parents=True, exist_ok=True)
     target.write_text(header + body.rstrip() + "\n", encoding="utf-8")
 
     entry = {
-        "source_filename": txt.name,
+        "source_filename": src.name,
         "target_path": rel,
         "category": category,
         "category_reason": reason,
-        "is_snippet": is_snippet,
         "lines": lines,
         "raw_hash": raw_hash,
         "norm_hash": norm_hash,
@@ -413,24 +424,26 @@ def process_file(txt: Path, manifest: dict, args) -> str:
     manifest["entries"].append(entry)
 
     if not args.keep:
-        txt.unlink()
+        src.unlink()
 
-    kind = "Snippet" if is_snippet else "Script"
-    return f"IMPORTED    {txt.name}  ->  {rel}  ({kind}, {lines} ln, {reason})"
+    return f"IMPORTED    {src.name}  ->  {rel}  ({lines} ln, {reason})"
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Import loose .txt CCL files into categorized Scripts/Snippets."
+        description=(
+            "Import CCL .txt/.prg files from Inbox/ subdirectories into "
+            "output/ category folders as .sql files."
+        )
     )
     parser.add_argument("--dry-run", action="store_true",
                         help="Show the plan; write, move, and delete nothing.")
     parser.add_argument("--keep", action="store_true",
-                        help="Import but do not delete source .txt files.")
+                        help="Import but do not delete source files.")
     parser.add_argument("--similarity", type=float, default=DEFAULT_SIMILARITY,
                         help=f"Near-dup ratio threshold (default {DEFAULT_SIMILARITY}).")
     parser.add_argument("--reindex", action="store_true",
-                        help="Rebuild the manifest from the Scripts/ and Snippets/ trees, then exit.")
+                        help="Rebuild the manifest from the output/ tree, then exit.")
     args = parser.parse_args()
 
     INBOX.mkdir(exist_ok=True)
@@ -454,38 +467,46 @@ def main():
             else:
                 e["_norm_content"] = None
 
-    txt_files = sorted(INBOX.glob("*.txt"))
-    if not txt_files:
-        print("No files to import (Inbox/ has no .txt files).")
-        # Still persist any self-heal additions.
+    # Collect all importable files from Inbox/ (recurse into subdirectories).
+    src_files = sorted(
+        p for p in INBOX.rglob("*")
+        if p.is_file()
+        and p.suffix.lower() in IMPORTABLE_EXTS
+        and "review" not in p.parts
+    )
+
+    if not src_files:
+        print("No files to import (Inbox/ has no .txt or .prg files).")
         _persist(manifest, args)
         return
 
-    print(f"Found {len(txt_files)} .txt file(s) in Inbox/"
+    print(f"Found {len(src_files)} file(s) in Inbox/"
           + ("  (DRY RUN)" if args.dry_run else ""))
     print("=" * 72)
 
-    counts = {"IMPORTED": 0, "EXACT-DUP": 0, "NEAR-DUP": 0, "PLAN": 0}
-    for txt in txt_files:
-        status = process_file(txt, manifest, args)
+    counts: dict[str, int] = {}
+    for src in src_files:
+        subfolder = src.parent.name if src.parent != INBOX else ""
+        status = process_file(src, manifest, args, subfolder)
         print(f"  {status}")
-        counts[status.split()[0]] = counts.get(status.split()[0], 0) + 1
+        key = status.split()[0]
+        counts[key] = counts.get(key, 0) + 1
 
     print("=" * 72)
     if args.dry_run:
-        print(f"DRY RUN: {counts['PLAN']} would import, "
-              f"{counts['EXACT-DUP']} exact-dup, {counts['NEAR-DUP']} near-dup.")
+        print(f"DRY RUN: {counts.get('PLAN', 0)} would import, "
+              f"{counts.get('EXACT-DUP', 0)} exact-dup, "
+              f"{counts.get('NEAR-DUP', 0)} near-dup.")
     else:
-        print(f"Done: {counts['IMPORTED']} imported, "
-              f"{counts['EXACT-DUP']} exact-dup skipped, "
-              f"{counts['NEAR-DUP']} near-dup parked in Inbox/review/.")
+        print(f"Done: {counts.get('IMPORTED', 0)} imported, "
+              f"{counts.get('EXACT-DUP', 0)} exact-dup skipped, "
+              f"{counts.get('NEAR-DUP', 0)} near-dup parked in Inbox/review/.")
         _persist(manifest, args)
 
 
 def _persist(manifest: dict, args) -> None:
     if args.dry_run:
         return
-    # Strip in-memory-only fields before writing.
     clean = {
         "version": MANIFEST_VERSION,
         "entries": [

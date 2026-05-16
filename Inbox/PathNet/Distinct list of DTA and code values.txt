@@ -1,5 +1,0 @@
-Select mnemonic,task_assay_cd from discrete_task_assay 
-
-where activity_type_cd = 692 and active_ind = 1 go
-
-

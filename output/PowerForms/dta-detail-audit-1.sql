@@ -1,0 +1,125 @@
+/*
+* Name:     DTA Detail Audit 1
+* Source:   Inbox/Notes & Templates/DTA Detail Audit 1.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    99
+* Notes:
+*/
+
+SELECT
+	organization = org.org_name
+	,service_resource = UAR_GET_CODE_DISPLAY(rrf.service_resource_cd)
+	,dta.task_assay_cd
+	,dta.mnemonic
+	;,dta.concept_cki
+	
+	,def_result_type = UAR_GET_CODE_DISPLAY(dta.default_result_type_cd)
+	,rrf.default_result
+	,units_of_measure = UAR_GET_CODE_DISPLAY(rrf.units_cd)
+	
+	,species = UAR_GET_CODE_DISPLAY(rrf.species_cd)
+	,sex = 
+		IF(rrf.sex_cd != 0) UAR_GET_CODE_DISPLAY(rrf.sex_cd)
+		ELSE "(All)"
+		ENDIF
+	,start_age = 
+		IF(UAR_GET_CODE_MEANING(rrf.age_from_units_cd) = "MINUTES") 
+			CONCAT(TRIM(CNVTSTRING((rrf.age_from_minutes))), " ", UAR_GET_CODE_DISPLAY(rrf.age_from_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_from_units_cd) = "HOURS") 
+			CONCAT(TRIM(CNVTSTRING((rrf.age_from_minutes/60))), " ", UAR_GET_CODE_DISPLAY(rrf.age_from_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_from_units_cd) = "DAYS")
+			CONCAT(TRIM(CNVTSTRING((rrf.age_from_minutes/60/24))), " ", UAR_GET_CODE_DISPLAY(rrf.age_from_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_from_units_cd) = "WEEKS")
+			CONCAT(TRIM(CNVTSTRING((rrf.age_from_minutes/60/24/7))), " ", UAR_GET_CODE_DISPLAY(rrf.age_from_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_from_units_cd) = "MONTHS")
+			CONCAT(TRIM(CNVTSTRING((rrf.age_from_minutes/60/24/31))), " ", UAR_GET_CODE_DISPLAY(rrf.age_from_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_from_units_cd) = "YEARS")
+			CONCAT(TRIM(CNVTSTRING((rrf.age_from_minutes/60/24/365))), " ", UAR_GET_CODE_DISPLAY(rrf.age_from_units_cd))
+		ENDIF
+	,end_age = 
+		IF(UAR_GET_CODE_MEANING(rrf.age_to_units_cd) = "MINUTES") 
+			CONCAT(TRIM(CNVTSTRING((rrf.age_to_minutes))), " ", UAR_GET_CODE_DISPLAY(rrf.age_to_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_to_units_cd) = "HOURS") 
+			CONCAT(TRIM(CNVTSTRING((rrf.age_to_minutes/60))), " ", UAR_GET_CODE_DISPLAY(rrf.age_to_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_to_units_cd) = "DAYS")
+			CONCAT(TRIM(CNVTSTRING((rrf.age_to_minutes/60/24))), " ", UAR_GET_CODE_DISPLAY(rrf.age_to_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_to_units_cd) = "WEEKS")
+			CONCAT(TRIM(CNVTSTRING((rrf.age_to_minutes/60/24/7))), " ", UAR_GET_CODE_DISPLAY(rrf.age_to_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_to_units_cd) = "MONTHS")
+			CONCAT(TRIM(CNVTSTRING((rrf.age_to_minutes/60/24/31))), " ", UAR_GET_CODE_DISPLAY(rrf.age_to_units_cd))
+		ELSEIF(UAR_GET_CODE_MEANING(rrf.age_to_units_cd) = "YEARS")
+			CONCAT(TRIM(CNVTSTRING((rrf.age_to_minutes/60/24/365))), " ", UAR_GET_CODE_DISPLAY(rrf.age_to_units_cd))
+		ENDIF		
+
+;	,minutes_back = rrf.mins_back
+;	,flexing_rules = rrf.ref_range_rule_ind
+	
+	/* REFERENCE RANGES */
+	,rrf.normal_low
+	,rrf.normal_high
+	,rrf.critical_low
+	,rrf.critical_high
+	,rrf.feasible_low
+	,rrf.feasible_high
+;	,rrf.review_low
+;	,rrf.review_high
+;	,rrf.linear_low
+;	,rrf.linear_high
+;	,rrf.sensitive_low
+;	,rrf.sensitive_high
+	
+	/* INDICATORS */
+;	,rrf.feasible_ind
+;	,rrf.review_ind
+;	,rrf.linear_ind
+;	,rrf.sensitive_ind
+
+;	,rrf.def_result_ind	;default results
+;	,rrf.delta_chk_flag ;type of delta checking performed
+;	,rrf.dilute_ind	;is dilution required for results that exceed linear limits?
+;	,rrf.gestational_ind
+;	,rrf.precedence_sequence ;determines which ref range is used when multiple meet the criteria
+;	,rrf.unknown_age_ind
+	
+	/* TIMING/UPDATE INFORMATION */
+	,rrf.beg_effective_dt_tm
+	,last_updated_dt_tm = rrf.updt_dt_tm
+	,last_updated_prsnl = p.name_full_formatted
+	,last_updated_username = p.username
+
+
+FROM DISCRETE_TASK_ASSAY dta
+	,REFERENCE_RANGE_FACTOR rrf
+	,SERVICE_RESOURCE sr	;needed for labs
+	,ORGANIZATION org		;needed for labs
+	,PRSNL p				;update personnel
+
+PLAN dta WHERE 1=1
+	;... query by specific DTA
+	;AND dta.task_assay_cd = 703512 ;peripheral pulse rate
+	
+	;... query by activity type
+	;AND dta.activity_type_cd = 692 ;General Lab
+	;AND dta.activity_type_cd = 671 ;Anatomic Pathology
+	;AND dta.activity_type_cd = 635107 ;Patient Care
+
+	;... query by result type
+	AND dta.default_result_type_cd = 885 ;Numeric
+	
+	;... exclude inactive DTAs
+	AND dta.end_effective_dt_tm > SYSDATE
+	AND dta.active_ind = 1
+	
+JOIN rrf WHERE dta.task_assay_cd = rrf.task_assay_cd
+	;... exclude inactive reference ranges
+	AND rrf.end_effective_dt_tm > SYSDATE
+	AND rrf.active_ind = 1
+	
+JOIN sr WHERE rrf.service_resource_cd = sr.service_resource_cd
+JOIN org WHERE sr.organization_id = org.organization_id
+JOIN p WHERE rrf.updt_id = p.person_id
+
+ORDER BY organization, service_resource, dta.mnemonic, species, sex
+WITH TIME=300

@@ -1,0 +1,62 @@
+/*
+* Name:     Tasks placed by system not in scheduled state
+* Source:   Inbox/PowerForms/Tasks placed by system not in scheduled state.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    44
+* Notes:
+*/
+
+select 
+ta.person_id
+, ta.task_create_dt_tm
+, ta.task_dt_tm
+, ta.active_status_dt_tm
+, ta.task_id
+, ta.updt_id
+, ta.task_class_cd
+, ta_task_class_cd_disp = uar_get_code_display(ta.task_class_cd)
+, task_activity_status = uar_get_code_display(ta.active_status_cd)
+, ta.event_id
+, PATIENT_NAME = ps.name_full_formatted
+, FIN = ea.alias
+, FACILITY = uar_get_code_display(e.loc_facility_cd)
+, LOCATION = uar_get_code_display(e.location_cd)
+, UNIT = uar_get_code_display(e.loc_nurse_unit_cd)
+, ROOM = uar_get_code_display(e.loc_room_cd)
+, BED = uar_get_code_display(e.loc_bed_cd)
+, DISCHARGE_DATE = e.disch_dt_tm
+, ta.*
+ 
+from
+task_activity ta
+, PERSON   PS
+, encounter e
+, encntr_alias ea
+ 
+ 
+plan ta
+where ta.reference_task_id = 9921037893
+and ta.active_ind = 1
+and ta.task_create_dt_tm > cnvtdatetime (curdate -60,0)
+and ta.task_class_cd != 2649 ;scheduled
+and ta.event_id =0
+and ta.updt_id = 1
+ 
+ 
+ 
+JOIN PS
+WHERE PS.PERSON_ID = ta.PERSON_ID
+;and ps.name_last_key = "TEST*"
+join e
+where e.person_id = ta.person_id
+ and e.encntr_id = ta.encntr_id
+ and e.disch_dt_tm is null
+ and  e.active_ind = 1
+join ea
+where ea.encntr_id = e.encntr_id
+  and ea.encntr_alias_type_cd = 1077
+ 
+ 
+with time = 30

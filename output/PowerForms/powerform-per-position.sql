@@ -1,0 +1,50 @@
+/*
+* Name:     PowerForm per position
+* Source:   Inbox/PowerForms/PowerForm per position.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    33
+* Notes:
+*/
+
+SELECT	
+	fa.dcp_forms_ref_id
+	,FORM_DESCRIPTION = ref.description
+	,FORM_DEFINITION = ref.definition
+	,POSITION = UAR_GET_CODE_DISPLAY(pr.position_cd)
+	,USAGE_CNT = COUNT(*)
+	
+FROM	
+	dcp_forms_activity fa
+	,dcp_forms_ref ref
+	,dcp_forms_activity_comp dfac
+	,clinical_event ce
+	,prsnl pr
+	,encounter e
+	
+PLAN fa 	
+WHERE fa.form_dt_tm BETWEEN cnvtdatetime(curdate-180,000) AND cnvtdatetime(curdate,000) 	
+	AND fa.active_ind = 1
+	
+JOIN ref 	
+WHERE ref.dcp_forms_ref_id = fa.dcp_forms_ref_id	
+	AND fa.version_dt_tm >= ref.beg_effective_dt_tm
+	AND fa.version_dt_tm < ref.end_effective_dt_tm
+	
+JOIN dfac	
+WHERE dfac.dcp_forms_activity_id = fa.dcp_forms_activity_id	
+	AND dfac.component_cd = 10891
+	
+JOIN ce	
+WHERE ce.event_id = dfac.parent_entity_id	
+	AND ce.valid_until_dt_tm > cnvtdatetime(curdate,curtime3)
+	
+JOIN pr WHERE pr.person_id = ce.performed_prsnl_id	
+JOIN e WHERE e.encntr_id = ce.encntr_id	
+	
+GROUP BY	
+ 	fa.dcp_forms_ref_id
+	,ref.description
+	,ref.definition
+	,pr.position_cd

@@ -1,0 +1,33 @@
+/*
+* Name:     PowerForm usage
+* Source:   Inbox/PowerForms/PowerForm usage.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    18
+* Notes:
+*/
+
+SELECT DISTINCT
+	PowerForm = forms.definition
+	,TIMES_CHARTED = COUNT(*)
+
+FROM dcp_forms_ref forms
+	,dcp_forms_activity activities
+
+PLAN activities
+WHERE activities.updt_dt_tm >= sysdate -30; Can update time parameter here, in days.
+	AND activities.form_status_cd = (
+		SELECT c.code_value 
+		FROM code_value c
+		WHERE c.code_set = 8 
+			AND c.cdf_meaning IN ("ACTIVE","AUTH","MODIFIED","IN PROGRESS")
+		)
+
+JOIN forms WHERE forms.dcp_forms_ref_id = activities.dcp_forms_ref_id
+	AND activities.version_dt_tm BETWEEN forms.beg_effective_dt_tm AND forms.end_effective_dt_tm
+
+GROUP BY forms.definition
+ORDER BY forms.definition 
+
+WITH TIME=60, FORMAT

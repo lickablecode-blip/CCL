@@ -1,0 +1,31 @@
+/*
+* Name:     Position Table of Contents Audit (19 Feb 2025)
+* Source:   Inbox/Positions/Position Table of Contents Audit (19 Feb 2025).txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: Audit Programs  (reason: subfolder)
+* Lines:    21
+* Notes:
+*/
+
+select
+cv.display
+, n.pvc_name
+, n.pvc_value
+, n2.pvc_name
+, n2.pvc_value
+from
+code_value cv
+, view_prefs v
+, name_value_prefs n
+, name_value_prefs n2
+plan cv where cv.code_set = 88
+and cv.display = "Resident/Intern"
+join v where v.position_cd = cv.code_value
+and v.application_number = 600005
+and v.frame_type = "CHART"
+join n where n.parent_entity_id = outerjoin(v.view_prefs_id)
+and n.pvc_name = outerjoin("VIEW_CAPTION")
+join n2 where n2.parent_entity_id = outerjoin(v.view_prefs_id)
+and n2.pvc_name = outerjoin("DISPLAY_SEQ")
+order by cnvtint(n2.pvc_value)

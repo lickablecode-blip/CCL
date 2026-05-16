@@ -1,0 +1,30 @@
+/*
+* Name:     Postion to Table of Contents
+* Source:   Inbox/mPages/Postion to Table of Contents.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    20
+* Notes:
+*/
+
+select
+cv.display
+, n.pvc_name
+, n.pvc_value
+from
+code_value cv
+, view_prefs v
+, name_value_prefs n
+plan cv where cv.active_ind = 1
+;and exists (select p.position_cd from prsnl p
+;where p.position_cd = cv.code_value
+;and p.active_ind = 1)
+join v where v.position_cd = cv.code_value
+and v.frame_type = "CHART"
+and v.view_name = "DISCERNRPT"
+and v.application_number = 600005
+join n where n.parent_entity_id = v.view_prefs_id
+and n.pvc_name = "VIEW_CAPTION"
+and n.pvc_value = "LST*"
+order by cv.display

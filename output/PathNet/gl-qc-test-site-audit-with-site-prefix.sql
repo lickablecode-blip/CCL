@@ -1,0 +1,57 @@
+/*
+* Name:     GL QC test site audit with site prefix
+* Source:   Inbox/PathNet/GL QC test site audit with site prefix.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PathNet  (reason: subfolder)
+* Lines:    38
+* Notes:
+*/
+
+select
+	cm.short_description,
+	rar1_service_resource_disp = uar_get_code_display( rar1.service_resource_cd ),
+	a1_accession = concat(substring(4,2, a1.accession),"-" ,substring(6,2,  a1.accession ), "-", substring(12, 7, a1.accession)),
+	rar1.instr_xref,
+	rar1.symbology,
+	a2_accession = concat(substring(4,2, a2.accession),"-" ,substring(6,2,  a2.accession ), "-", substring(12, 7, a2.accession)),
+	rar2.instr_xref
+
+from
+	control_material  cm,
+	control_lot  cl,
+	resource_lot_r  rlr,
+	resource_accession_r  rar1,
+	accession  a1,
+	resource_accession_r  rar2,
+	accession  a2
+
+plan cm
+where cm.control_id > 0
+
+join cl
+where cl.control_id = cm.control_id
+  and cl.expiration_dt_tm >= cnvtdatetime(curdate,curtime) ; Extract only active data.
+
+join rlr
+where rlr.lot_id = cl.lot_id
+  and rlr.defined_inactive_dt_tm >= cnvtdatetime(curdate,curtime) ; Extract only active data.
+
+join rar1
+where rar1.service_resource_cd = rlr.service_resource_cd
+  and rar1.control_id = cm.control_id
+  and rar1.preactive_ind = 0
+
+join a1
+where a1.accession_id = rar1.accession_id
+
+join rar2
+where rar2.service_resource_cd = rlr.service_resource_cd
+  and rar2.control_id = cm.control_id
+  and rar2.preactive_ind = 1
+
+join a2
+where a2.accession_id = rar2.accession_id
+
+order by	cm.short_description,
+			rar1_service_resource_disp

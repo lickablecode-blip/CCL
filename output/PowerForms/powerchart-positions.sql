@@ -1,0 +1,20 @@
+/*
+* Name:     PowerChart Positions
+* Source:   Inbox/PowerForms/PowerChart Positions.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    7
+* Notes:
+*/
+
+SELECT
+	A_POSITION_DISP = UAR_GET_CODE_DISPLAY(A.POSITION_CD)
+	, A.POSITION_CD
+
+FROM
+	APP_PREFS   A
+
+WHERE A.POSITION_CD > 0 AND A.APPLICATION_NUMBER = 600005
+
+WITH NOCOUNTER, SEPARATOR=" ", FORMAT

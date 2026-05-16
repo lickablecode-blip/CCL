@@ -1,0 +1,47 @@
+/*
+* Name:     Order Folders in Quick Orders MPage
+* Source:   Inbox/mPages/Order Folders in Quick Orders MPage.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    37
+* Notes:
+*/
+
+select
+mpage_disp=v1.freetext_desc
+, mpage=c.category_name
+, flex_position=uar_get_code_display(x.parent_entity_id)
+, component=r.report_name
+, filter=f.filter_display
+, value=if(v1.mpage_param_mean = "mp_label")v1.mpage_param_value endif
+, folder_disp=if(f.filter_display = "Order Selection Favorite Folder")ac.short_description endif
+, folder_unique_disp=if(f.filter_display = "Order Selection Favorite Folder")ac.long_description endif
+from
+br_datamart_category c
+, br_datamart_report r
+, br_datamart_value v
+, br_datamart_flex x
+, br_datamart_report_filter_r fr
+, br_datamart_filter f
+, br_datamart_value v1
+, alt_sel_cat ac
+plan c where c.category_name = "OPQOC Infectious Disease" ; insert MPage from query 1
+join r where r.br_datamart_category_id = c.br_datamart_category_id
+join v where v.br_datamart_category_id = c.br_datamart_category_id
+and v.parent_entity_id = r.br_datamart_report_id
+and v.end_effective_dt_tm > cnvtdatetime(curdate,curtime)
+join x where x.br_datamart_flex_id = outerjoin(v.br_datamart_flex_id)
+join fr where fr.br_datamart_report_id = v.parent_entity_id
+join f where f.br_datamart_category_id = v.br_datamart_category_id
+and f.br_datamart_filter_id = fr.br_datamart_filter_id
+and f.filter_display in
+("Order Selection Favorite Folder"
+,"Order Selection section layout parameters"
+,"View display name")
+join v1 where v1.br_datamart_category_id = outerjoin(f.br_datamart_category_id)
+and v1.br_datamart_filter_id = outerjoin(f.br_datamart_filter_id)
+and v1.br_datamart_flex_id = outerjoin(v.br_datamart_flex_id)
+and v1.mpage_param_mean != outerjoin("mp_exp_collapse")
+join ac where ac.alt_sel_category_id = outerjoin(v1.parent_entity_id)
+order by c.category_name, flex_position, component, f.filter_seq, ac.long_description

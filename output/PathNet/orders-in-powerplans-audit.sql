@@ -1,0 +1,54 @@
+/*
+* Name:     Orders in PowerPlans Audit
+* Source:   Inbox/PathNet/Orders in PowerPlans Audit.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PathNet  (reason: subfolder)
+* Lines:    31
+* Notes:
+*/
+
+select
+		PowerPlan_Name = pcat.description,
+		Clinical_Category = UAR_get_code_display (pc.dcp_clin_cat_cd),
+		Clinical_Sub_Category = UAR_get_code_display (pc.dcp_clin_sub_cat_cd),
+		Synonym_id = ocs.synonym_id,
+		Pathway_Comp_id = pc.pathway_comp_id,
+		Order_Mnemonic = ocs.mnemonic,
+		Include_Exclude = pc.include_ind,
+		Order_Sentence_Display_Line = os.order_sentence_display_line
+		
+from
+		order_catalog_synonym ocs,
+		pw_comp_os_reltn pcor,
+		pathway_comp pc,
+		pathway_catalog pcat,
+		order_sentence os,
+		dummyt d
+		
+plan pc
+	
+		where pc.active_ind = 1
+
+join ocs
+	
+		where ocs.synonym_id = pc.parent_entity_id
+		
+join pcat
+	
+		where pcat.pathway_catalog_id = pc.pathway_catalog_id
+		and pcat.active_ind = 1
+
+join d
+
+join pcor
+	
+		where pcor.pathway_comp_id = pc.pathway_comp_id
+
+join os		
+		where os.order_sentence_id = pcor.order_sentence_id
+
+
+order PowerPlan_Name
+with outerjoin = d
+go

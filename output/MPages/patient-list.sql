@@ -1,0 +1,23 @@
+/*
+* Name:     Patient List
+* Source:   Inbox/mPages/Patient List.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    8
+* Notes:
+*/
+
+select p.username,position=uar_get_code_display(p.position_cd),p.name_full_formatted,dpl.name,dpl.description,dpl.patient_list_id
+ 
+from dcp_pl_argument dpa
+,dcp_patient_list dpl
+,prsnl p
+ 
+plan dpa where dpa.argument_name = "careteam_id" and dpa.parent_entity_id in (827845.00,  827846.00)
+ 
+join dpl where dpa.patient_list_id=dpl.patient_list_id
+ 
+join p where dpl.owner_prsnl_id=p.person_id
+ 
+order by p.username

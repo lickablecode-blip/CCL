@@ -1,0 +1,31 @@
+/*
+* Name:     Orders with aliases
+* Source:   Inbox/PathNet/Orders with aliases.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PathNet  (reason: subfolder)
+* Lines:    17
+* Notes:
+*/
+
+select
+	oc.catalog_cd,
+	oc.description,
+	oc.primary_mnemonic,
+	oc.dept_display_name,
+	cva.alias
+	
+from	order_catalog  oc,
+		code_value_alias cva
+		
+plan oc
+  where oc.activity_type_cd = 692
+    and oc.active_ind = 1
+    and oc.activity_subtype_cd  = XXXXX 
+    
+join cva
+	where cva.code_value = oc.catalog_cd
+	and cva.contributor_source_cd = XXXXX 
+	and cva.code_set = 200
+	
+order oc.description

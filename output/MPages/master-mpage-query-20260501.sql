@@ -1,0 +1,199 @@
+/*
+* Name:     Master_Mpage_Query_20260501
+* Source:   Inbox/mPages/Master_Mpage_Query_20260501.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    189
+* Notes:
+*/
+
+SELECT 
+application = a.description
+, position = c1.display
+,viewpoint_url_name = 
+	VALUE(SUBSTRING(FINDSTRING('vId="', n3.pvc_value)+5 
+	, (FINDSTRING('"&s',TRIM(n3.pvc_value,7))-(FINDSTRING('vId="', n3.pvc_value)+5))
+	, n3.pvc_value), n3.pvc_value)
+, viewpoint = m.viewpoint_name
+, toc_disp = n.pvc_value
+, toc_seq = trim(n2.pvc_value)
+, mpage_PK = cat.br_datamart_category_id
+, mpage_meaning = cat.category_mean
+, mpage = cat.category_name
+, mpage_title = val5.freetext_desc
+, mpage_type = 
+	EVALUATE(cat.layout_flag,
+	0, "0 - Summary Layout",
+	1, "1 - Workflow Layout",
+	2, "2 - Smart Template",
+	3, "3 - Quick Orders and Charges",
+	4, "4 - Patient Organizer View",
+	5, "5 - Dashboard",
+	6, "6 - Organizer View - Provider",
+	7, "7 - Emergent Event",
+	8, "8 - SCM Purchase Order Organizer",
+	9, "9 - SCM Inventory Management Organizer")
+, mpage_flex = 
+	EVALUATE(cat.flex_flag,
+	0, "0 - Not Flexed",
+	1, "1 - Position",
+	2, "2 - Location",
+	3, "3 - Position-Location")
+, component_meaning = rep.report_mean
+, component_seq = rep.mpage_pos_seq ;display order of mpage components
+, component = rep.report_name
+, filter_PK = fil.br_datamart_filter_id
+, filter = fil.filter_display
+, filter_seq = fil.filter_seq
+, value = 
+	IF(val.mpage_param_mean = "mp_look_back_units")        
+	build2("look_back_units",': ',        
+		IF(val.value_type_flag = 1)"All encounters"        
+		ELSEIF(val.value_type_flag = 2)"Current encounter" 
+		ENDIF,
+		if(val.parent_entity_id > 0.00)        
+		build2(' - ',trim(val.mpage_param_value),' ',uar_get_code_display(val.parent_entity_id))
+		ENDIF)        
+	ELSEIF(val.mpage_param_mean = "mp_label")        
+	build2("label_display",': ',trim(val.mpage_param_value))
+	ELSEIF(val.mpage_param_mean = "mp_link")        
+	build2("component_link",': ',trim(val.mpage_param_value))        
+	ELSEIF(val.mpage_param_mean = "mp_date_format*")        
+	build2("date_format",': ',trim(val.mpage_param_value))        
+	ELSEIF(val.mpage_param_mean = "mp_add_label")        
+	build2("quick_add",': ',trim(val.mpage_param_value))        
+	ELSEIF(val.mpage_param_mean = "mp_exp_collapse")
+	build2("exp_collapse",': ',trim(val.mpage_param_value))
+	ELSEIF(val.mpage_param_mean = "mp_scrolling")
+	build2("scrolling",': ',trim(val.mpage_param_value),' ','rows')
+	ELSEIF(val.parent_entity_name = "CODE_VALUE"        
+	AND c2.code_set NOT IN (54,93))trim(c2.display)        
+	ELSEIF(val.parent_entity_name = "CODE_VALUE"        
+	AND c2.code_set = 54)build2(trim(val.freetext_desc),' - ',trim(c2.display))            
+	ELSEIF(val.parent_entity_name = "CODE_VALUE"        
+	AND c2.code_set = 93)trim(ves.event_set_name)
+	ELSEIF(val.parent_entity_name = "DCP_FORMS_REF")trim(ref.definition)        
+	ELSEIF(val.parent_entity_name = "NOMENCLATURE")trim(nom.mnemonic)
+	ELSEIF(val.parent_entity_name = "MLTM_DRUG_CATEGORIES")trim(mdc.category_name)
+	ELSE val.freetext_desc
+	ENDIF
+FROM
+view_prefs v
+, code_value c1
+, application a
+, detail_prefs d
+, code_value c2
+, name_value_prefs n
+, name_value_prefs n2
+, name_value_prefs n3
+, mp_viewpoint m
+, mp_viewpoint_reltn r
+, br_datamart_category cat ;mpages
+, br_datamart_report rep ;components
+, br_datamart_report_filter_r rf ;filter relational table
+, br_datamart_filter fil ;filters
+, br_datamart_value val ;values
+, v500_event_set_code ves
+, dcp_forms_ref ref
+, nomenclature nom
+, mltm_drug_categories mdc
+, br_datamart_report rep5
+, br_datamart_filter fil5
+, br_datamart_value val5
+/***application***/
+PLAN v 
+	WHERE v.frame_type = "CHART"
+	AND v.view_name = "DISCERNRPT"
+	AND v.application_number = 600005  ;;APPLICATION IN PREFMAINT TABLE
+JOIN a 
+	WHERE a.application_number = v.application_number
+/***position***/
+JOIN c1 
+	WHERE c1.code_value = v.position_cd
+	AND c1.code_set = 88
+	AND c1.display_key != "Z*"
+	AND c1.display_key != "VA*"
+	AND c1.display_key != "DNA*"
+	AND c1.display_key != "DBC*"
+	AND c1.display_key != "SYSTEM*"
+	AND c1.active_ind = 1 
+;	AND c1.display = "Physician - Primary Care"  ;;SINGLE POSITION ONLY
+/***viewpoint prep***/
+JOIN d 
+	WHERE d.application_number = v.application_number
+	AND d.position_cd = v.position_cd
+	AND d.view_name = v.view_name
+	AND d.view_seq = v.view_seq
+/***toc display***/
+JOIN n WHERE n.parent_entity_id = v.view_prefs_id
+	AND n.pvc_name = "VIEW_CAPTION"
+/***toc sequence***/
+JOIN n2 
+	WHERE n2.parent_entity_id = v.view_prefs_id
+	AND n2.pvc_name = "DISPLAY_SEQ"
+/***viewpoint url name***/
+JOIN n3 
+	WHERE n3.parent_entity_id = d.detail_prefs_id
+	AND n3.pvc_name = "REPORT_NAME"
+	AND n3.pvc_value = "<url>$DM_INFO:CONTENT_SERVICE_URL$/mp-content*"
+/***viewpoint name***/
+JOIN m 
+	WHERE m.viewpoint_name_key = value(substring(findstring('vId="', n3.pvc_value)+5
+	,(findstring('"&s',trim(n3.pvc_value,7))-(findstring('vId="', n3.pvc_value)+5))
+	, n3.pvc_value), n3.pvc_value)
+/***mpage***/
+JOIN r 
+	WHERE r.mp_viewpoint_id = m.mp_viewpoint_id
+JOIN cat 
+	WHERE cat.br_datamart_category_id = r.br_datamart_category_id
+	and cat.layout_flag = 1
+/***mpage title***/
+JOIN rep5 
+	WHERE rep5.br_datamart_category_id = cat.br_datamart_category_id
+	AND rep5.report_mean = "MP_VB_WF_PAGE_LEVEL"
+JOIN fil5 
+	WHERE fil5.br_datamart_category_id = rep5.br_datamart_category_id
+	AND fil5.filter_display = "View display*"
+JOIN val5 
+	WHERE val5.br_datamart_category_id = fil5.br_datamart_category_id       
+	AND val5.br_datamart_filter_id = fil5.br_datamart_filter_id
+/***component***/
+JOIN rep 
+	WHERE rep.br_datamart_category_id = cat.br_datamart_category_id
+	AND rep.report_mean = "MP_VB_WF_ADV_GROWTH_CHT"  ;;COMPONENT NAME FROM BR_DATAMART_REPORT
+/***filter***/
+JOIN rf 
+	WHERE rf.br_datamart_report_id = OUTERJOIN(rep.br_datamart_report_id)
+JOIN fil 
+	WHERE fil.br_datamart_filter_id = OUTERJOIN(rf.br_datamart_filter_id)
+	AND fil.br_datamart_category_id = OUTERJOIN(cat.br_datamart_category_id)
+	;AND fil.filter_display = "Default Growth Chart for 0-2 years"  ;;SPECIFIC FILTER
+/***filter values***/
+JOIN val 
+	WHERE val.br_datamart_category_id = fil.br_datamart_category_id 
+	AND val.br_datamart_filter_id = fil.br_datamart_filter_id
+JOIN c2
+	WHERE c2.code_value = OUTERJOIN(val.parent_entity_id)
+	AND c2.active_ind = OUTERJOIN(1)
+JOIN ves
+	WHERE ves.event_set_cd = OUTERJOIN(val.parent_entity_id)
+JOIN ref
+	WHERE ref.dcp_forms_ref_id = OUTERJOIN(val.parent_entity_id)
+	AND ref.active_ind = OUTERJOIN(1)
+JOIN nom
+	WHERE nom.nomenclature_id = OUTERJOIN(val.parent_entity_id)
+	AND nom.active_ind = OUTERJOIN(1)
+JOIN mdc
+	WHERE mdc.multum_category_id = OUTERJOIN(val.parent_entity_id)
+ORDER BY
+a.description
+, cnvtupper(c1.display)
+, cnvtupper(n.pvc_value)
+, r.view_seq
+, cnvtupper(n2.pvc_value)
+, cnvtupper(m.viewpoint_name)
+, cnvtupper(cat.category_name)
+, rep.report_name
+, cnvtupper(fil.filter_display)
+WITH maxrec=1000, time=20, NOCOUNTER;, SEPARATOR=" ", FORMAT,orahintcbo(" GATHER_PLAN_STATISTICS ", "master_mpage")

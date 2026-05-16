@@ -1,0 +1,36 @@
+/*
+* Name:     All AdHoc Roots & PVC Values
+* Source:   Inbox/PowerForms/All AdHoc Roots & PVC Values.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: PowerForms  (reason: subfolder)
+* Lines:    17
+* Notes:
+*/
+
+SELECT DISTINCT
+nvp.pvc_value
+ , A.long_description
+ , A.short_description
+
+FROM
+ name_value_prefs   nvp
+ , app_prefs   ap
+ , alt_sel_Cat   a
+
+plan ap where ap.application_number = 600005 ; <- PowerChart 4250111 <- FirstNet
+
+and ap.active_ind = 1 
+
+join nvp where nvp.parent_entity_id = ap.app_prefs_id 
+
+and nvp.pvc_name = "ADHOC_ROOT" 
+
+and nvp.active_ind = 1 
+
+and cnvtreal(trim(nvp.pvc_value)) > 0  join a where cnvtreal(trim(nvp.pvc_value)) = a.alt_sel_category_id
+
+ORDER BY
+ A.long_description
+
+WITH nocounter

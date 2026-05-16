@@ -1,0 +1,241 @@
+/*
+* Name:     MPage Component & Filter Audit
+* Source:   Inbox/mPages/MPage Component & Filter Audit.txt
+* Purpose:
+* Imported: 2026-05-15
+* Category: MPages  (reason: subfolder)
+* Lines:    229
+* Notes:
+*/
+
+select 
+  mpage = bdc.category_name
+  , component = b.report_name
+  , filter = bdf.filter_display
+  , flex_position = evaluate2(
+      if(nullind(f.br_datamart_flex_id) = 0)
+        if(f.parent_entity_type_flag = 1)
+         uar_get_code_display(f.parent_entity_id)
+        elseif(f.parent_entity_type_flag = 2)
+         uar_get_code_display(f_parent.parent_entity_id)
+        endif
+      else
+         "Default"
+      endif
+    )
+  , flex_location = evaluate2(
+      if(nullind(f_parent.br_datamart_flex_id) = 0)
+        uar_get_code_display(f.parent_entity_id)
+      elseif(f.parent_entity_type_flag = 1)
+       "All Facilities"
+      else
+       "Default"
+      endif
+    )
+  , combined_filter_value = trim(build2((evaluate2(
+      if(nullcheck(v.freetext_desc,"TRUE",NULLIND(v.freetext_desc)) > " ")
+        if(v.parent_entity_id = 0.00 and v.freetext_desc = "1")
+          "Yes"
+        elseif(v.parent_entity_id = 0.00 and v.freetext_desc = "0")
+          "No"
+        elseif(v.parent_entity_name = "CODE_VALUE")
+          if(v.parent_entity_id = vcv.code_value and vcv.code_set = 93)
+           trim(ves.event_set_cd_disp)
+          else
+           trim(v.freetext_desc)
+          endif
+        else
+          trim(v.freetext_desc)
+        endif
+      elseif(cnvtupper(v.mpage_param_mean) in ("MP_LOOK_BACK_UNITS","MP_LOOK_BACK_CUR_ENC"))
+        if(nullcheck(v.mpage_param_value,"TRUE",NULLIND(v.mpage_param_value)) > " ")
+          if(v.value_type_flag = 1)
+            build2("All encounters - Specified time period: ",(trim(v.mpage_param_value)))
+          elseif(v.value_type_flag = 2)
+            build2("Current encounter only - Specified time period: ",(trim(v.mpage_param_value)))
+          endif
+        else
+          if(v.value_type_flag = 1)
+            "All encounters"
+          elseif(v.value_type_flag = 2)
+            "Current encounter only"
+          endif
+        endif
+      elseif(nullcheck(v.mpage_param_value,"TRUE",NULLIND(v.mpage_param_value)) > " ")
+       trim(v.mpage_param_value)
+      elseif(v.parent_entity_name = "NOMENCLATURE")
+       trim(n.source_string)
+      elseif(v.parent_entity_name = "CODE_VALUE")
+        if(vcv.code_set = 93)
+          trim(ves.event_set_cd_disp)
+        else
+          trim(vcv.display)
+        endif
+      elseif(v.parent_entity_name = "DCP_FORMS_REF")
+       trim(d.definition)
+      elseif(v.parent_entity_name = "ALT_SEL_CAT")
+       trim(alc.long_description)
+      elseif(v.parent_entity_name = "MLTM_DRUG_CATEGORIES")
+       trim(mdc.category_name)
+      elseif(v.parent_entity_name = "cr_report_template")
+       trim(crt.template_name)
+      elseif(v.parent_entity_name = "BR_EVENT_GROUPER")
+       trim(breg.grouper_name)
+      elseif(v.parent_entity_name = "ORDER_CATALOG_SYNONYM")
+       trim(ocs.mnemonic)
+      elseif(v.parent_entity_name = "PATHWAY_CATALOG")
+       trim(pc.description)
+      elseif(v.parent_entity_name = "DMS_CONTENT_TYPE")
+       trim(dct.display)
+      elseif(v.parent_entity_name = "MLTM_ALR_CATEGORY")
+       trim(mac.category_description)
+      elseif(v.parent_entity_name = "PRSNL")
+       trim(pr.name_full_formatted)
+      elseif(v.parent_entity_name = "BR_CCN")
+       trim(brc.ccn_name)
+      elseif(v.parent_entity_name = "BR_HCO")
+       trim(bh.hco_name)
+      elseif(v.parent_entity_name = "PERSON")
+       trim(per.name_full_formatted)
+      elseif(v.parent_entity_name = "WORKING_VIEW")
+       trim(wv.display_name)
+      elseif(v.parent_entity_name = "HM_EXPECT_SAT")
+       trim(hes.expect_sat_name)
+      elseif(v.parent_entity_name = "OE_FIELD_MEANING")
+       trim(ofm.oe_field_meaning)
+      elseif(nullcheck(v.mpage_param_value,"TRUE",NULLIND(v.mpage_param_value)) = " ")
+        if(cnvtupper(v.mpage_param_mean) in ("MP_LOOK_BACK_UNITS","MP_LOOK_BACK_CUR_ENC"))
+          if(v.value_type_flag = 1)
+            "All encounters"
+          elseif(v.value_type_flag = 2)
+            "Current encounter only"
+          endif
+        endif
+      endif))
+  , (evaluate2(
+     if(((nullcheck(v.freetext_desc,"TRUE",NULLIND(v.freetext_desc)) > " ")
+          or 
+          (nullcheck(v.mpage_param_value,"TRUE",NULLIND(v.mpage_param_value)) > " "))
+        and v.parent_entity_name = "CODE_VALUE"
+        and v.parent_entity_id = vcv.code_value
+        and vcv.code_set = 54)
+        " "
+      else
+        ""
+       endif))
+  , (evaluate2(
+     if(((nullcheck(v.freetext_desc,"TRUE",NULLIND(v.freetext_desc)) > " ")
+          or 
+          (nullcheck(v.mpage_param_value,"TRUE",NULLIND(v.mpage_param_value)) > " "))
+        and v.parent_entity_name = "CODE_VALUE"
+        and v.parent_entity_id = vcv.code_value
+        and vcv.code_set = 54)
+        trim(vcv.display)
+      else
+        ""
+       endif))
+   ))
+   ,v.parent_entity_id
+   ,ACTIVITY_TYPE=uar_get_code_display(bi.ext_owner_cd)
+  , v.freetext_desc
+  , v.mpage_param_value
+  , v.mpage_param_mean
+  , v.parent_entity_name
+  , v.parent_entity_id
+  ;, v.parent_entity_name2
+  ;, v.parent_entity_id2
+from
+  br_datamart_category bdc
+  , br_datamart_report b
+  , br_datamart_report_filter_r r
+  , br_datamart_filter bdf
+  , br_datamart_value v
+  , br_datamart_flex f
+  , br_datamart_flex f_parent
+  , code_value vcv
+  , nomenclature n
+  , dcp_forms_ref d
+  , alt_sel_cat alc
+  , mltm_drug_categories mdc
+  , cr_report_template crt
+  , br_event_grouper breg
+  , order_catalog_synonym ocs
+  , pathway_catalog pc
+  , dms_content_type dct
+  , mltm_alr_category mac
+  , prsnl pr
+  , br_ccn brc
+  , br_hco bh
+  , person per
+  , working_view wv
+  , hm_expect_sat hes
+  , oe_field_meaning ofm
+  , v500_event_set_code ves
+  , bill_item bi
+plan bdc 
+  where bdc.layout_flag in(0,1,3,4)
+  and bdc.category_type_flag = 1
+  and bdc.category_mean = "VB_MHSOPWFPRIMARYCARE" ;;;;          <-----          this is where you put MPage Identifier.
+join b 
+  where b.br_datamart_category_id = bdc.br_datamart_category_id
+  ;and b.report_name = "[Component name]"     ;;;;;;;            <----- Component name goes here 
+join r 
+  where r.br_datamart_report_id = b.br_datamart_report_id
+join bdf
+  where bdf.br_datamart_filter_id = outerjoin(r.br_datamart_filter_id)
+  and bdf.filter_display = "Map Catalog Codes"     ;;;;;            <-----     Filter name goes here 
+join v
+  where v.br_datamart_filter_id = outerjoin(bdf.br_datamart_filter_id)
+  ;and v.mpage_param_mean = "mp_label"
+  ;and v.mpage_param_value = "[Component Label name]"
+join f 
+  where f.br_datamart_flex_id = outerjoin(v.br_datamart_flex_id)
+  and f.br_datamart_flex_id > outerjoin(0.00)
+join f_parent
+  where f_parent.br_datamart_flex_id = outerjoin(f.grouper_flex_id)
+  and f_parent.br_datamart_flex_id > outerjoin(0.00)
+join vcv 
+  where vcv.code_value = outerjoin(v.parent_entity_id)
+  and vcv.active_ind = outerjoin(1)
+join n 
+  where n.nomenclature_id = outerjoin(v.parent_entity_id)
+join d 
+  where d.dcp_forms_ref_id = outerjoin(v.parent_entity_id)
+join alc 
+  where alc.alt_sel_category_id = outerjoin(v.parent_entity_id)
+join mdc 
+  where mdc.multum_category_id = outerjoin(v.parent_entity_id)
+join crt 
+  where crt.report_template_id = outerjoin(v.parent_entity_id)
+join breg 
+  where breg.br_event_grouper_id = outerjoin(v.parent_entity_id)
+join ocs 
+  where ocs.synonym_id = outerjoin(v.parent_entity_id)
+join pc 
+  where pc.pathway_catalog_id = outerjoin(v.parent_entity_id)
+join dct 
+  where dct.dms_content_type_id = outerjoin(v.parent_entity_id)
+join mac
+  where mac.alr_category_id = outerjoin(v.parent_entity_id)
+join pr
+  where pr.person_id = outerjoin(v.parent_entity_id)
+join brc
+  where brc.br_ccn_id = outerjoin(v.parent_entity_id)
+join bh
+  where bh.br_hco_id = outerjoin(v.parent_entity_id)
+join per
+  where per.person_id = outerjoin(v.parent_entity_id)
+join wv
+  where wv.working_view_id = outerjoin(v.parent_entity_id)
+join hes
+  where hes.expect_sat_id = outerjoin(v.parent_entity_id)
+join ofm
+  where ofm.oe_field_meaning_id = outerjoin(v.parent_entity_id)
+join ves
+  where ves.event_set_cd = outerjoin(v.parent_entity_id)
+join bi 
+	where bi.ext_parent_reference_id = outerjoin(v.parent_entity_id)
+order by ACTIVITY_TYPE
+ 
+  
+with time = 20
