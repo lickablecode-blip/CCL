@@ -39,17 +39,39 @@ Both styles are valid and can coexist. Cerner accepts either syntax in the ad ho
 
 `APPLICATION_NUMBER = 600005` identifies PowerChart in `APP_PREFS`.
 
-## Query Categories
+## Import Tool
 
-| Category | Example Files |
+`import_inbox.py` ingests CCL files from `Inbox/` subdirectories into `output/[Category]/` as `.sql` files with provenance headers. Run from the repo root.
+
+| Command | Purpose |
 |---|---|
-| Note types & templates | `Active Note Types.txt`, `Note Type Audit.txt`, `Note Type Usage*.txt` |
-| PowerForms / DynDocs | `Active PowerForms.txt`, `All PowerForms & Textual Renditions.txt`, `PowerForm Sections.txt` |
-| MPage components & filters | `MPage Component Audit.txt`, `MPage Document Filter Audit.txt`, `mponent & Filter Audit*.txt` |
-| Positions & access | `PowerChart Positions.txt`, `Position to MPage.txt`, `poit Mpages and positions.txt` |
-| Care teams | `Care Teams.txt` |
-| Orders | `Quick Visit Audit.txt`, `Virtual Viewing Orders.txt`, `Order Activity by Position.txt` |
-| Ad hoc folder structure | `AdHoc Folder Contents.txt`, `All AdHoc Roots & PVC Values.txt` |
+| `python import_inbox.py --dry-run` | Preview destinations without writing anything |
+| `python import_inbox.py --keep` | Import without deleting source files |
+| `python import_inbox.py --reindex` | Rebuild manifest from `output/` tree |
+| `python import_inbox.py --similarity 0.85` | Lower threshold for near-dup detection |
+
+- Accepts `.txt` and `.prg` files; skips `.doc` and anything in `Inbox/review/`
+- Near-dups (≥0.92 similarity) are moved to `Inbox/review/` for manual decision
+- State tracked in `.import-manifest.json` (do not edit manually)
+- `.PRG` files (Cerner migration programs) keep their existing `/* */` copyright header intact
+
+## Output Structure
+
+All query files live in `output/[Category]/` as `.sql` files. Current categories:
+
+| Folder | Contents |
+|---|---|
+| `Audit Programs` | Position-level, access, and configuration audits |
+| `CCL Reference` | Language examples, program templates, DUMMYT patterns |
+| `Data Model` | Table exploration, joins, and data retrieval examples |
+| `Functions` | UAR functions, date/time helpers, string functions |
+| `MPages` | MPage component and filter queries |
+| `Orders & Scheduling` | Order catalog, scheduling, and DTA queries |
+| `PathNet` | Lab/PathNet-specific queries and migration programs |
+| `PowerForms` | Dynamic documentation, PowerForm, and note type queries |
+| `Rules & Alerts` | Alert rules, special duty, and notification queries |
+
+Each file begins with a provenance header (Name, Source, Purpose, Imported, Category, Lines, Notes). See `Inbox/Template.sql` for the format.
 
 ## Conventions
 
