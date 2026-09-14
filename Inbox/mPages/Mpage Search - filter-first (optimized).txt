@@ -2,20 +2,18 @@
 * Name:    Mpage Query (FAWG)
 * Source:  Rewrite of "Mpage Survey Query" (20260825)
 * Purpose: Find where a specific Mpage lives (application > position > viewpoint),
-*          searching by Mpage PK, meaning, name, or display title.
+*          searching by Mpage PK, meaning, name, [or display title; broken for now].
 * Version: 20260914
 * Notes:
 *   This version drives from BR_DATAMART_CATEGORY, filtered by the search criteria
-*   FIRST, then walks outward to find which viewpoint(s) and position(s) expose it.
+*   FIRST, then walks outward to find which viewpoint(s) and position(s) it belongs to.
 *
-*   REP/FIL/VAL (the mpage_title lookup) is an OUTERJOIN chain, not inner. Most
-*   mpages we care about should have a title, but it's technically possible for
-*   one not to, hence OUTERJOIN.
+*   Most mpages we care about should have a title, but it's technically possible for
+*   an mpage to not have one, hence REP/FIL/VAL chain is OUTERJOIN.
 *
-*   Because that chain is OUTERJOIN'd, the commented-out title-search line on VAL
-*   (search by display text) won't actually exclude non-matching mpages as
-*   written. To make title search actually filter (and run efficiently), PLAN
-*   from VAL first instead of CAT, then drop the OUTERJOIN() wrappers on REP/FIL/VAL.
+*   Because that chain is OUTERJOIN'd, the filter on VAL won't actually exclude
+*   anything, and is commented-out. To make title search actually filter (and run efficiently),
+*   PLAN from VAL first instead of CAT, then drop the OUTERJOIN() wrappers on REP/FIL/VAL.
 *
 *   TO SEARCH: fill in exactly ONE of the three PLAN CAT filters below (PK / mean /
 *   name). Leaving cat.layout_flag = 1 with no other filter returns every Mpage.
