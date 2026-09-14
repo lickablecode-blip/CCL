@@ -1,0 +1,128 @@
+/*
+* Name:    Mpage Query (FAWG)
+* Source:  Rewrite of "Mpage Survey Query" (20260825)
+* Purpose: Find where a specific Mpage lives (application > position > viewpoint),
+*          searching by Mpage PK, meaning, name, or display title.
+* Version: 20260914
+* Notes:
+*   This version drives from BR_DATAMART_CATEGORY, filtered by the search criteria
+*   FIRST, then walks outward to find which viewpoint(s) and position(s) expose it.
+*
+*   REP/FIL/VAL (the mpage_title lookup) is an OUTERJOIN chain, not inner. Most
+*   mpages we care about should have a title, but it's technically possible for
+*   one not to, hence OUTERJOIN.
+*
+*   Because that chain is OUTERJOIN'd, the commented-out title-search line on VAL
+*   (search by display text) won't actually exclude non-matching mpages as
+*   written. To make title search actually filter (and run efficiently), PLAN
+*   from VAL first instead of CAT, then drop the OUTERJOIN() wrappers on REP/FIL/VAL.
+*
+*   TO SEARCH: fill in exactly ONE of the three PLAN CAT filters below (PK / mean /
+*   name). Leaving cat.layout_flag = 1 with no other filter returns every Mpage.
+*/
+
+SELECT
+application = a.description
+, position = c1.display
+, viewpoint_url_name = m.viewpoint_name_key
+, viewpoint = m.viewpoint_name
+, toc_disp = n.pvc_value
+, toc_seq = trim(n2.pvc_value)
+, mpage_PK = cat.br_datamart_category_id
+, mpage_meaning = cat.category_mean
+, mpage = cat.category_name
+, mpage_title = val.freetext_desc
+, mpage_type =
+	EVALUATE(cat.layout_flag,
+	0, "0 - Summary Layout",
+	1, "1 - Workflow Layout",
+	2, "2 - Smart Template",
+	3, "3 - Quick Orders and Charges",
+	4, "4 - Patient Organizer View",
+	5, "5 - Dashboard",
+	6, "6 - Organizer View - Provider",
+	7, "7 - Emergent Event",
+	8, "8 - SCM Purchase Order Organizer",
+	9, "9 - SCM Inventory Management Organizer")
+FROM
+br_datamart_category cat ;mpages - driving table, filtered by search criteria below
+, br_datamart_report rep
+, br_datamart_filter fil
+, br_datamart_value val
+, mp_viewpoint_reltn r
+, mp_viewpoint m
+, name_value_prefs n3
+, detail_prefs d
+, view_prefs v
+, name_value_prefs n
+, name_value_prefs n2
+, code_value c1
+, application a
+/***mpage search -- fill in exactly one of the three lines below***/
+PLAN cat
+	WHERE cat.layout_flag = 1                           ;;restrict to Mpages
+	AND cat.br_datamart_category_id = 20301704.00       ;;SEARCH BY MPAGE_PK - enter the id
+;	AND cat.category_mean = "VB_MHSOPWFPRIMARYCARE"     ;;SEARCH BY MPAGE MEANING - enter the meaning
+;	AND cat.category_name = "MHS OPWF Prim*"            ;;SEARCH BY MPAGE NAME - enter the name, case-sensitive (trailing * ok)
+/***mpage title — searching by display text isn't functional as written; see Notes above***/
+JOIN rep
+	WHERE rep.br_datamart_category_id = OUTERJOIN(cat.br_datamart_category_id)
+	AND rep.report_mean = OUTERJOIN("MP_VB_WF_PAGE_LEVEL")
+JOIN fil
+	WHERE fil.br_datamart_category_id = OUTERJOIN(rep.br_datamart_category_id)
+	AND fil.filter_display = OUTERJOIN("View display*")
+JOIN val
+	WHERE val.br_datamart_category_id = OUTERJOIN(fil.br_datamart_category_id)
+	AND val.br_datamart_filter_id = OUTERJOIN(fil.br_datamart_filter_id)
+;	AND findstring(cnvtupper("Outpatient Primary Care Workflow"), cnvtupper(val.freetext_desc)) != 0  ;;SEARCH BY MPAGE DISPLAY TITLE
+/***viewpoint(s) this mpage is attached to***/
+JOIN r
+	WHERE r.br_datamart_category_id = cat.br_datamart_category_id
+JOIN m
+	WHERE m.mp_viewpoint_id = r.mp_viewpoint_id
+/***which prefs rows reference this viewpoint's vId***/
+JOIN n3
+	WHERE n3.pvc_name = "REPORT_NAME"
+	AND n3.pvc_value = "<url>$DM_INFO:CONTENT_SERVICE_URL$/mp-content*"
+	AND m.viewpoint_name_key = value(substring(findstring('vId="', n3.pvc_value)+5
+		,(findstring('"&s',trim(n3.pvc_value,7))-(findstring('vId="', n3.pvc_value)+5))
+		, n3.pvc_value), n3.pvc_value)
+/***detail/view prefs those rows belong to***/
+JOIN d
+	WHERE d.detail_prefs_id = n3.parent_entity_id
+JOIN v
+	WHERE v.application_number = d.application_number
+	AND v.position_cd = d.position_cd
+	AND v.view_name = d.view_name
+	AND v.view_seq = d.view_seq
+	AND v.frame_type = "CHART"
+	AND v.view_name = "DISCERNRPT"
+	AND v.application_number = 600005  ;;APPLICATION IN PREFMAINT TABLE
+/***toc display + sequence for that view***/
+JOIN n
+	WHERE n.parent_entity_id = v.view_prefs_id
+	AND n.pvc_name = "VIEW_CAPTION"
+JOIN n2
+	WHERE n2.parent_entity_id = v.view_prefs_id
+	AND n2.pvc_name = "DISPLAY_SEQ"
+/***position + application***/
+JOIN c1
+	WHERE c1.code_value = v.position_cd
+	AND c1.code_set = 88
+	AND c1.active_ind = 1
+	AND c1.display_key != "Z*"
+;	AND c1.display_key != "VA*" ;;We generally want to know all DOD/VA/DNA/DBC positions
+;	AND c1.display_key != "DNA*"
+;	AND c1.display_key != "DBC*"
+;	AND c1.display_key != "SYSTEM*"
+;	AND c1.display = "Physician - Primary Care"  ;;SINGLE POSITION ONLY
+JOIN a
+	WHERE a.application_number = v.application_number
+ORDER BY
+a.description
+, cnvtupper(c1.display)
+, cnvtupper(n.pvc_value)
+, cnvtstring(n2.pvc_value)
+, cnvtupper(m.viewpoint_name)
+, cnvtupper(cat.category_name)
+WITH maxrec=500, time=30, nocounter
