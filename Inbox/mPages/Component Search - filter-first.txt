@@ -1,0 +1,80 @@
+/*
+* Name:    Component Query (FAWG)
+* Source:  Companion to "Mpage Query (FAWG)" -- component-to-mpage stage only
+* Purpose: Find which Mpage(s) a specific component lives on, searching by Component
+*          meaning or name. Feed a result's Mpage PK/meaning/name into the Mpage Query
+*          to resolve viewpoints and positions for a specific Mpage.
+* Version: 20260917
+* Notes:
+*   This originally chained straight through to viewpoint/position, same as the Mpage
+*   Query. That broke down in testing (timeout + inefficient-join warning). Root cause:
+*   the Mpage Query's own header already documents that NAME_VALUE_PREFS is only cheap
+*   to join "after the Mpage is already resolved to a small set of viewpoints." A
+*   component search can match dozens of Mpages at once -- the same component
+*   name/meaning is reused across many workflows -- so by the time the chain reached
+*   NAME_VALUE_PREFS the viewpoint set was no longer small, and that join has no usable
+*   index for its computed vId match to fall back on.
+*
+*   Fix: split into two stages instead of one combined query. This query stops at the
+*   Mpage level (fast -- BR_DATAMART_REPORT/CATEGORY only, never touches
+*   NAME_VALUE_PREFS). Once you've picked the specific Mpage(s) you care about from
+*   these results, run the Mpage Query (search by that Mpage's PK/meaning/name) to get
+*   its viewpoints and positions -- reusing the already-validated, fast per-mpage chain
+*   instead of re-solving it here across every Mpage the component happens to touch.
+*
+*   mpage_title lookup (REP_TITLE/FIL_TITLE/VAL_TITLE) is the same OUTERJOIN'd
+*   REPORT_MEAN/"View display*" chain the Mpage Query uses -- cheap, stays here since it
+*   never touches NAME_VALUE_PREFS.
+*
+*   TO SEARCH: fill in exactly ONE of the two PLAN REP filters below (name / meaning).
+*/
+
+SELECT
+mpage_PK = cat.br_datamart_category_id
+, mpage_meaning = cat.category_mean
+, mpage = cat.category_name
+, mpage_title = val_title.freetext_desc
+, mpage_type =
+	EVALUATE(cat.layout_flag,
+	0, "0 - Summary Layout",
+	1, "1 - Workflow Layout",
+	2, "2 - Smart Template",
+	3, "3 - Quick Orders and Charges",
+	4, "4 - Patient Organizer View",
+	5, "5 - Dashboard",
+	6, "6 - Organizer View - Provider",
+	7, "7 - Emergent Event",
+	8, "8 - SCM Purchase Order Organizer",
+	9, "9 - SCM Inventory Management Organizer")
+, component_PK = rep.br_datamart_report_id
+, component_meaning = rep.report_mean
+, component = rep.report_name
+, component_seq = rep.mpage_pos_seq ;display order of the component on the mpage
+FROM
+br_datamart_report rep ;components - driving table, filtered by search criteria below
+, br_datamart_category cat
+, br_datamart_report rep_title
+, br_datamart_filter fil_title
+, br_datamart_value val_title
+/***component search -- fill in exactly one of the two lines below***/
+PLAN rep
+	WHERE rep.report_name = "Advanced Growth Chart*"    ;;SEARCH BY COMPONENT NAME - enter the name, case-sensitive (trailing * ok)
+;	AND rep.report_mean = "MP_VB_WF_ADV_GROWTH_CHT"     ;;SEARCH BY COMPONENT MEANING - enter the meaning
+/***mpage this component lives on***/
+JOIN cat
+	WHERE cat.br_datamart_category_id = rep.br_datamart_category_id
+	AND cat.layout_flag = 1                             ;;restrict to Mpages
+/***mpage title -- see Notes above***/
+JOIN rep_title
+	WHERE rep_title.br_datamart_category_id = OUTERJOIN(cat.br_datamart_category_id)
+	AND rep_title.report_mean = OUTERJOIN("MP_VB_WF_PAGE_LEVEL")
+JOIN fil_title
+	WHERE fil_title.br_datamart_category_id = OUTERJOIN(rep_title.br_datamart_category_id)
+	AND fil_title.filter_display = OUTERJOIN("View display*")
+JOIN val_title
+	WHERE val_title.br_datamart_category_id = OUTERJOIN(fil_title.br_datamart_category_id)
+	AND val_title.br_datamart_filter_id = OUTERJOIN(fil_title.br_datamart_filter_id)
+ORDER BY
+cnvtupper(cat.category_name)
+, rep.mpage_pos_seq
+WITH maxrec=500, time=30, nocounter

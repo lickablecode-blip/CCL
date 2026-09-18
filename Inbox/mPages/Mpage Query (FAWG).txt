@@ -3,7 +3,7 @@
 * Source:  Rewrite of "Mpage Survey Query" (20260825)
 * Purpose: Find where a specific Mpage lives (application > position > viewpoint),
 *          searching by Mpage PK, meaning, name, [or display title; broken for now].
-* Version: 20260914
+* Version: 20260918
 * Notes:
 *   This version drives from BR_DATAMART_CATEGORY, filtered by the search criteria
 *   FIRST, then walks outward to find which viewpoint(s) and position(s) it belongs to.
@@ -49,9 +49,9 @@ br_datamart_category cat ;mpages - driving table, filtered by search criteria be
 , br_datamart_value val
 , mp_viewpoint_reltn r
 , mp_viewpoint m
-, name_value_prefs n3
 , detail_prefs d
 , view_prefs v
+, name_value_prefs n3
 , name_value_prefs n
 , name_value_prefs n2
 , code_value c1
@@ -78,24 +78,25 @@ JOIN r
 	WHERE r.br_datamart_category_id = cat.br_datamart_category_id
 JOIN m
 	WHERE m.mp_viewpoint_id = r.mp_viewpoint_id
-/***which prefs rows reference this viewpoint's vId***/
-JOIN n3
-	WHERE n3.pvc_name = "REPORT_NAME"
-	AND n3.pvc_value = "<url>$DM_INFO:CONTENT_SERVICE_URL$/mp-content*"
-	AND m.viewpoint_name_key = value(substring(findstring('vId="', n3.pvc_value)+5
-		,(findstring('"&s',trim(n3.pvc_value,7))-(findstring('vId="', n3.pvc_value)+5))
-		, n3.pvc_value), n3.pvc_value)
-/***detail/view prefs those rows belong to***/
+/***detail/view prefs for this application -- filtered by the constant app/view FIRST, before
+    the n3 sweep below, since n3 is a huge polymorphic table with no app/view column of its own***/
 JOIN d
-	WHERE d.detail_prefs_id = n3.parent_entity_id
+	WHERE d.application_number = 600005  ;;APPLICATION IN PREFMAINT TABLE
+	AND d.view_name = "DISCERNRPT"
 JOIN v
 	WHERE v.application_number = d.application_number
 	AND v.position_cd = d.position_cd
 	AND v.view_name = d.view_name
 	AND v.view_seq = d.view_seq
 	AND v.frame_type = "CHART"
-	AND v.view_name = "DISCERNRPT"
-	AND v.application_number = 600005  ;;APPLICATION IN PREFMAINT TABLE
+/***which of this application's prefs rows reference this viewpoint's vId***/
+JOIN n3
+	WHERE n3.parent_entity_id = d.detail_prefs_id
+	AND n3.pvc_name = "REPORT_NAME"
+	AND n3.pvc_value = "<url>$DM_INFO:CONTENT_SERVICE_URL$/mp-content*"
+	AND m.viewpoint_name_key = value(substring(findstring('vId="', n3.pvc_value)+5
+		,(findstring('"&s',trim(n3.pvc_value,7))-(findstring('vId="', n3.pvc_value)+5))
+		, n3.pvc_value), n3.pvc_value)
 /***toc display + sequence for that view***/
 JOIN n
 	WHERE n.parent_entity_id = v.view_prefs_id
