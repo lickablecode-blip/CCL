@@ -59,7 +59,7 @@ br_datamart_category cat ;mpages - driving table, filtered by search criteria be
 /***mpage search -- fill in exactly one of the three lines below***/
 PLAN cat
 	WHERE cat.layout_flag = 1                           ;;restrict to Mpages
-	AND cat.br_datamart_category_id = 20301704.00       ;;SEARCH BY MPAGE_PK - enter the id
+	AND cat.br_datamart_category_id IN (11774883.00)       ;;SEARCH BY MPAGE_PK - enter the id
 ;	AND cat.category_mean = "VB_MHSOPWFPRIMARYCARE"     ;;SEARCH BY MPAGE MEANING - enter the meaning
 ;	AND cat.category_name = "MHS OPWF Prim*"            ;;SEARCH BY MPAGE NAME - enter the name, case-sensitive (trailing * ok)
 /***mpage title — searching by display text isn't functional as written; see Notes above***/
@@ -72,6 +72,7 @@ JOIN fil
 JOIN val
 	WHERE val.br_datamart_category_id = OUTERJOIN(fil.br_datamart_category_id)
 	AND val.br_datamart_filter_id = OUTERJOIN(fil.br_datamart_filter_id)
+	AND val.br_datamart_flex_id = OUTERJOIN(0.00)
 ;	AND findstring(cnvtupper("Outpatient Primary Care Workflow"), cnvtupper(val.freetext_desc)) != 0  ;;SEARCH BY MPAGE DISPLAY TITLE
 /***viewpoint(s) this mpage is attached to***/
 JOIN r
