@@ -1,0 +1,158 @@
+/*
+* Name:    Mpage Component Filter Query (FAWG)
+* Source:  Rewrite of "Mpage Survey Query" (20260825). Companion to "Mpage Query (FAWG)"
+*          and "Mpage Component Query (FAWG)".
+* Purpose: Pull one component's filter settings from several mpages as a flat extract.
+* Version: 20260929
+*
+* TO RUN:
+*   1. the component meaning in the JOIN R line (required)
+*   2. the mpage list in the PLAN C line (optional -- leave both lines commented out
+*      to return every mpage that carries the component)
+*
+* Notes:
+*   Ad hoc safe. One SELECT, no DECLARE, no report-writer sections.
+*
+*   The component is an INNER JOIN: an mpage in the list that does not carry it returns
+*   no rows at all. Compare the count of mpages in the output against the list.
+*   A filter with nothing set returns "<not configured>".
+*
+*   Default (non-flexed) values only -- br_datamart_flex_id = 0. MPAGE_FLEX shows which
+*   pages are flexed; on those, matching defaults may not be the whole story.
+*
+*   Inactive code values / nomenclature are still decoded, suffixed " (INACTIVE)", so a
+*   page still mapped to a retired value shows up instead of reading as blank.
+*   DCP_FORMS_REF keeps active_ind = 1: it is versioned (PK is DCP_FORM_INSTANCE_ID), and
+*   that filter is what keeps it to one row per form. An inactive form falls through to
+*   freetext_desc or "<undecoded> DCP_FORMS_REF / id" rather than reading as blank.
+*
+*   Excel compare: add key = filter & "|" & setting, then
+*   =COUNTIFS(key_col, key) = <number of mpages>. FALSE = not identical on every page.
+*/
+
+SELECT
+mpage_PK = c.br_datamart_category_id
+, mpage_meaning = c.category_mean
+, mpage = c.category_name
+, mpage_flex = EVALUATE(c.flex_flag, 0, "Not Flexed", 1, "Position", 2, "Location", 3, "Position-Location")
+, component = r.report_name
+, comp_column = EVALUATE(r.mpage_pos_flag, 0, "Center", 1, "Left", 2, "Right")
+, comp_seq = r.mpage_pos_seq
+, setting_type =
+	IF (trim(v1.mpage_param_mean) > " ") "Component param"
+	ELSEIF (v1.br_datamart_value_id > 0.00) "Filter value"
+	ELSE ""
+	ENDIF
+, filter_seq = f.filter_seq
+, filter = f.filter_display
+, value_seq = v1.value_seq
+, setting =
+	IF (f.br_datamart_filter_id = 0.00) "<component has no filters>"
+	ELSEIF (v1.br_datamart_value_id = 0.00) "<not configured>"
+	/***mp_* component parameters***/
+	ELSEIF (v1.mpage_param_mean = "mp_look_back_units")
+	build2("look_back_units", ': ',
+		IF (v1.value_type_flag = 1) "All encounters"
+		ELSEIF (v1.value_type_flag = 2) "Current encounter"
+		ENDIF,
+		IF (v1.parent_entity_id > 0.00)
+		build2(' - ', trim(v1.mpage_param_value), ' ', uar_get_code_display(v1.parent_entity_id))
+		ENDIF)
+	ELSEIF (v1.mpage_param_mean = "mp_label")
+	build2("label_display", ': ', trim(v1.mpage_param_value))
+	ELSEIF (v1.mpage_param_mean = "mp_link")
+	build2("component_link", ': ', trim(v1.mpage_param_value))
+	ELSEIF (v1.mpage_param_mean = "mp_date_format*")
+	build2("date_format", ': ', trim(v1.mpage_param_value))
+	ELSEIF (v1.mpage_param_mean = "mp_add_label")
+	build2("quick_add", ': ', trim(v1.mpage_param_value))
+	ELSEIF (v1.mpage_param_mean = "mp_exp_collapse")
+	build2("exp_collapse", ': ', trim(v1.mpage_param_value))
+	ELSEIF (v1.mpage_param_mean = "mp_scrolling")
+	build2("scrolling", ': ', trim(v1.mpage_param_value), ' ', "rows")
+	/***entity-backed filter values***/
+	ELSEIF (v1.parent_entity_name = "CODE_VALUE"
+	AND vcv.code_set NOT IN (54, 93)) build2(trim(vcv.display), IF (vcv.active_ind = 0) " (INACTIVE)" ENDIF)
+	ELSEIF (v1.parent_entity_name = "CODE_VALUE"
+	AND vcv.code_set = 54) build2(trim(v1.freetext_desc), ' - ', trim(vcv.display), IF (vcv.active_ind = 0) " (INACTIVE)" ENDIF)
+	ELSEIF (v1.parent_entity_name = "CODE_VALUE"
+	AND vcv.code_set = 93) build2(trim(ves.event_set_name), IF (vcv.active_ind = 0) " (INACTIVE)" ENDIF)
+	ELSEIF (v1.parent_entity_name = "DCP_FORMS_REF"
+	AND ref.dcp_form_instance_id > 0.00) trim(ref.definition)
+	ELSEIF (v1.parent_entity_name = "NOMENCLATURE") build2(trim(n.mnemonic), IF (n.active_ind = 0) " (INACTIVE)" ENDIF)
+	ELSEIF (v1.parent_entity_name = "MLTM_DRUG_CATEGORIES") trim(mdc.category_name)
+	/***plain and unrecognized***/
+	ELSEIF (trim(v1.freetext_desc) > " ") trim(v1.freetext_desc)
+	ELSEIF (trim(v1.mpage_param_value) > " ")
+	build2(trim(v1.mpage_param_mean), ': ', trim(v1.mpage_param_value))
+	ELSEIF (v1.parent_entity_id > 0.00)
+	build2("<undecoded> ", trim(v1.parent_entity_name), ' / ', trim(cnvtstring(v1.parent_entity_id, 25, 0)))
+	ELSE ""
+	ENDIF
+, updt_dt_tm = IF (v1.br_datamart_value_id > 0.00) format(v1.updt_dt_tm, '@SHORTDATETIME') ENDIF
+, updt_by = p.name_full_formatted
+/***troubleshooting -- uncomment if a setting comes back <undecoded> or blank***/
+;, raw_entity_name = v1.parent_entity_name
+;, raw_entity_id = v1.parent_entity_id
+;, raw_param_mean = v1.mpage_param_mean
+;, raw_param_value = v1.mpage_param_value
+;, raw_freetext = v1.freetext_desc
+;, raw_value_type = v1.value_type_flag
+FROM
+br_datamart_category c            ;mpages
+, br_datamart_report r            ;components
+, br_datamart_report_filter_r fr  ;component-to-filter relation
+, br_datamart_filter f            ;filters
+, br_datamart_value v1            ;configured values
+, code_value vcv
+, v500_event_set_code ves
+, dcp_forms_ref ref
+, nomenclature n
+, mltm_drug_categories mdc
+, prsnl p
+/***THE MPAGES - fill in one of the two lines below, or neither for every mpage with the component***/
+PLAN c
+	WHERE c.category_type_flag = 1                                ;;Mpages (0=lighthouse, 2=nhiqm)
+	AND NOT c.category_name IN ("z*", "Z*")                       ;;exclude retired z-pages
+;	AND c.category_mean IN ("VB_MHSOPWFPRIMARYCARE")              ;;SEARCH BY MPAGE MEANING - enter the meaning
+;	AND c.category_name IN ("Outpatient Primary Care Workflow"    ;;BY NAME INSTEAD - case-sensitive
+;		, "Inpatient Hospitalist Admit Workflow")
+/***THE COMPONENT -- fill in exactly one of the two lines below; INNER JOIN to exclude mpages without component***/
+JOIN r
+	WHERE r.br_datamart_category_id = c.br_datamart_category_id
+	AND r.report_mean = "MP_VB_WF_ADV_GROWTH_CHT"       ;;SEARCH BY COMPONENT MEANING
+;	AND r.report_name = "Advanced Growth Chart"         ;;BY NAME INSTEAD - retitled per page, less reliable
+/***that component's filters***/
+JOIN fr
+	WHERE fr.br_datamart_report_id = OUTERJOIN(r.br_datamart_report_id)
+JOIN f
+	WHERE f.br_datamart_filter_id = OUTERJOIN(fr.br_datamart_filter_id)
+	AND f.br_datamart_category_id = OUTERJOIN(c.br_datamart_category_id)
+;	AND f.filter_display = OUTERJOIN("Map Catalog Codes")         ;;OPTIONAL - narrow to one filter
+/***configured values - default (non-flexed)***/
+JOIN v1
+	WHERE v1.br_datamart_category_id = OUTERJOIN(f.br_datamart_category_id)
+	AND v1.br_datamart_filter_id = OUTERJOIN(f.br_datamart_filter_id)
+	AND v1.br_datamart_flex_id = OUTERJOIN(0.00)
+	AND v1.end_effective_dt_tm > OUTERJOIN(cnvtdatetime(curdate, curtime))
+/***value decode***/
+JOIN vcv
+	WHERE vcv.code_value = OUTERJOIN(v1.parent_entity_id)
+JOIN ves
+	WHERE ves.event_set_cd = OUTERJOIN(v1.parent_entity_id)
+JOIN ref
+	WHERE ref.dcp_forms_ref_id = OUTERJOIN(v1.parent_entity_id)
+	AND ref.active_ind = OUTERJOIN(1)
+JOIN n
+	WHERE n.nomenclature_id = OUTERJOIN(v1.parent_entity_id)
+JOIN mdc
+	WHERE mdc.multum_category_id = OUTERJOIN(v1.parent_entity_id)
+JOIN p
+	WHERE p.person_id = OUTERJOIN(v1.updt_id)
+ORDER BY
+cnvtupper(c.category_mean)
+, f.filter_seq
+, cnvtupper(f.filter_display)
+, v1.value_seq
+, setting
+WITH maxrec = 5000, time = 60, nocounter, separator = " ", format
